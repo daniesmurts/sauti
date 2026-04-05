@@ -3,3 +3,4 @@ export * from './DomainFronting';
 export * from './createProxyManager';
 export * from './PlatformProxyManagers';
 export * from './ResilientProxyManager';
+export * from './NativeProxyModule';

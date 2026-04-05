@@ -1,5 +1,7 @@
 import React from 'react';
 
+import {getCoreAppRuntime} from '../../../core/runtime';
+
 import {
   createRuntimeRecentConversationTargetsStore,
   createRuntimeMainMessagingGateway,
@@ -46,6 +48,12 @@ export function MainFlowScreen({
   const [conversations, setConversations] = React.useState<ConversationPreview[]>([]);
   const [activeMessages, setActiveMessages] = React.useState<ChatMessage[]>([]);
   const [recentTargets, setRecentTargets] = React.useState<string[]>([]);
+  const [proxyStatus, setProxyStatus] = React.useState<
+    'connected' | 'connecting' | 'failed' | 'disabled'
+  >('disabled');
+  const [networkState, setNetworkState] = React.useState<
+    'connected' | 'disconnected' | 'degraded'
+  >('connected');
   const [startConversationError, setStartConversationError] = React.useState<string | undefined>();
   const [isStartingConversation, setIsStartingConversation] = React.useState(false);
 
@@ -100,6 +108,64 @@ export function MainFlowScreen({
   React.useEffect(() => {
     void refreshActiveRoomMessages();
   }, [refreshActiveRoomMessages]);
+
+  React.useEffect(() => {
+    let unsubscribe = () => {
+      return;
+    };
+
+    try {
+      const runtime = getCoreAppRuntime();
+      setProxyStatus(runtime.getLifecycleSnapshot().proxyStatus);
+      unsubscribe = runtime.subscribeLifecycle(event => {
+        if (event.type === 'proxyStatusChanged') {
+          setProxyStatus(event.status);
+        }
+      });
+    } catch {
+      setProxyStatus('disabled');
+    }
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    let unsubscribe = () => {
+      return;
+    };
+    let monitor: {start(): void; stop(): void} | null = null;
+
+    try {
+      // Lazy require keeps NetInfo native dependency out of tests unless available.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const NetworkMonitor = require('../../../core/network').NetworkMonitor as {
+        new (): {
+          getState(): 'connected' | 'disconnected' | 'degraded';
+          subscribe(
+            listener: (state: 'connected' | 'disconnected' | 'degraded') => void,
+          ): () => void;
+          start(): void;
+          stop(): void;
+        };
+      };
+
+      monitor = new NetworkMonitor();
+      setNetworkState(monitor.getState());
+      unsubscribe = monitor.subscribe(state => {
+        setNetworkState(state);
+      });
+      monitor.start();
+    } catch {
+      setNetworkState('connected');
+    }
+
+    return () => {
+      unsubscribe();
+      monitor?.stop();
+    };
+  }, []);
 
   const activeConversation = React.useMemo(() => {
     if (!activeRoomId) {
@@ -164,6 +230,8 @@ export function MainFlowScreen({
     return (
       <ConversationListScreen
         conversations={conversations}
+        proxyStatus={proxyStatus}
+        networkState={networkState}
         recentTargets={recentTargets}
         onStartRecentTarget={target => {
           void handleStartConversation(target);

@@ -323,6 +323,40 @@ describe('ConversationListScreen', () => {
     }
   });
 
+  it('renders proxy and network status banners', () => {
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        proxyStatus="connecting"
+        networkState="degraded"
+        onSelectConversation={() => {}}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const proxyNodes = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Proxy connecting',
+      );
+      expect(proxyNodes.length).toBeGreaterThan(0);
+
+      const offlineNodes = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Offline',
+      );
+      expect(offlineNodes.length).toBeGreaterThan(0);
+
+      const degradedHintNodes = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          node.props.children ===
+            'Network is degraded. Messages will retry automatically.',
+      );
+      expect(degradedHintNodes.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('expires clear confirmation after timeout and requires reconfirmation', async () => {
     jest.useFakeTimers();
     const onClearRecentTargets = jest.fn();

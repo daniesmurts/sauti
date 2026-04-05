@@ -3,6 +3,7 @@ export * from './db';
 export * from './matrix';
 export * from './messaging';
 export * from './network';
+export * from './notifications';
 export * from './proxy';
 export * from './runtime';
 export * from './storage';

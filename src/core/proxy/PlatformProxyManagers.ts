@@ -1,4 +1,5 @@
 import {ProxyFetchFn, ProxyHttpsAgent, ProxyManager, ProxyStatus} from './ProxyManager';
+import {NativeProxyStatus, getNativeProxyModule} from './NativeProxyModule';
 
 export interface PlatformProxyBridge {
   init(): Promise<void>;
@@ -49,3 +50,70 @@ class BasePlatformProxyManager implements ProxyManager {
 export class AndroidProxyManager extends BasePlatformProxyManager {}
 
 export class IOSProxyManager extends BasePlatformProxyManager {}
+
+function toProxyStatus(status: NativeProxyStatus): ProxyStatus {
+  switch (status) {
+    case 'connected':
+    case 'connecting':
+    case 'failed':
+    case 'disabled':
+      return status;
+    default:
+      return 'failed';
+  }
+}
+
+export class AndroidVpnProxyManager implements ProxyManager {
+  private status: ProxyStatus = 'disabled';
+
+  async init(): Promise<void> {
+    const module = getNativeProxyModule();
+    if (!module) {
+      throw new Error('SautiProxyModule is unavailable.');
+    }
+
+    await module.init();
+    this.syncStatus(await module.getStatus());
+  }
+
+  getStatus(): ProxyStatus {
+    return this.status;
+  }
+
+  getHttpsAgent(): ProxyHttpsAgent | null {
+    return null;
+  }
+
+  getFetchFn(): ProxyFetchFn | undefined {
+    return undefined;
+  }
+
+  isEnabled(): boolean {
+    return this.status === 'connected' || this.status === 'connecting';
+  }
+
+  async enable(): Promise<void> {
+    const module = getNativeProxyModule();
+    if (!module) {
+      throw new Error('SautiProxyModule is unavailable.');
+    }
+
+    await module.enable();
+    this.syncStatus(await module.getStatus());
+  }
+
+  async disable(): Promise<void> {
+    const module = getNativeProxyModule();
+    if (!module) {
+      this.status = 'disabled';
+      return;
+    }
+
+    await module.disable();
+    this.syncStatus(await module.getStatus());
+  }
+
+  private syncStatus(status: NativeProxyStatus): void {
+    this.status = toProxyStatus(status);
+  }
+}

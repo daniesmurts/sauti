@@ -1,6 +1,8 @@
 import {createSautiDatabase, WatermelonDbWiper} from '../db';
 import {
   createDefaultMatrixLifecycleService,
+  MatrixLifecycleEvent,
+  MatrixLifecycleSnapshot,
   MatrixAuthSessionProvider,
   MatrixLogoutReport,
   MatrixStartupResult,
@@ -32,6 +34,8 @@ export interface CoreAppRuntime {
   logout(): Promise<MatrixLogoutReport>;
   stop(): void;
   getCurrentUserId(): string;
+  getLifecycleSnapshot(): MatrixLifecycleSnapshot;
+  subscribeLifecycle(listener: (event: MatrixLifecycleEvent) => void): () => void;
 }
 
 export function createCoreAppRuntime(options: CoreAppRuntimeOptions): CoreAppRuntime {
@@ -93,6 +97,12 @@ export function createCoreAppRuntime(options: CoreAppRuntimeOptions): CoreAppRun
     },
     getCurrentUserId() {
       return currentUserIdProvider();
+    },
+    getLifecycleSnapshot() {
+      return lifecycle.getSnapshot();
+    },
+    subscribeLifecycle(listener) {
+      return lifecycle.subscribe(listener);
     },
   };
 }

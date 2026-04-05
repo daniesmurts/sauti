@@ -17,6 +17,8 @@ export interface ConversationPreview {
 export interface ConversationListScreenProps {
   conversations: ConversationPreview[];
   onSelectConversation(roomId: string): void;
+  proxyStatus?: 'connected' | 'connecting' | 'failed' | 'disabled';
+  networkState?: 'connected' | 'disconnected' | 'degraded';
   recentTargets?: string[];
   onStartRecentTarget?(target: string): Promise<void> | void;
   onRemoveRecentTarget?(target: string): Promise<void> | void;
@@ -24,6 +26,22 @@ export interface ConversationListScreenProps {
   onStartConversation?(target: string): Promise<void> | void;
   isStartingConversation?: boolean;
   startConversationError?: string;
+}
+
+function renderProxyStatusLabel(
+  proxyStatus: NonNullable<ConversationListScreenProps['proxyStatus']>,
+): string {
+  switch (proxyStatus) {
+    case 'connected':
+      return 'Proxy connected';
+    case 'connecting':
+      return 'Proxy connecting';
+    case 'failed':
+      return 'Proxy failed';
+    case 'disabled':
+    default:
+      return 'Proxy disabled';
+  }
 }
 
 type StartTargetHint = {
@@ -92,6 +110,8 @@ function renderUnreadBadge(unreadCount: number): React.JSX.Element | null {
 export function ConversationListScreen({
   conversations,
   onSelectConversation,
+  proxyStatus = 'disabled',
+  networkState = 'connected',
   recentTargets = [],
   onStartRecentTarget,
   onRemoveRecentTarget,
@@ -148,6 +168,36 @@ export function ConversationListScreen({
         <Text style={[TextPresets.caption, styles.subheading]}>
           Secure messages routed through Sauti.
         </Text>
+
+        <View style={styles.statusRow}>
+          <View
+            style={[
+              styles.statusBanner,
+              proxyStatus === 'connected'
+                ? styles.statusSuccess
+                : proxyStatus === 'connecting'
+                  ? styles.statusWarning
+                  : styles.statusError,
+            ]}>
+            <Text style={styles.statusText}>{renderProxyStatusLabel(proxyStatus)}</Text>
+          </View>
+
+          <View
+            style={[
+              styles.statusBanner,
+              networkState === 'connected' ? styles.statusSuccess : styles.statusError,
+            ]}>
+            <Text style={styles.statusText}>
+              {networkState === 'connected' ? 'Online' : 'Offline'}
+            </Text>
+          </View>
+        </View>
+
+        {networkState === 'degraded' ? (
+          <Text style={styles.degradedHint}>
+            Network is degraded. Messages will retry automatically.
+          </Text>
+        ) : null}
 
         {onStartConversation ? (
           <View style={styles.startConversationCard}>
@@ -337,6 +387,39 @@ const styles = StyleSheet.create({
   },
   startHint: {
     ...TextPresets.caption,
+    color: Colors.neutral[600],
+  },
+  statusRow: {
+    marginTop: Spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  statusBanner: {
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1,
+  },
+  statusSuccess: {
+    borderColor: Colors.semantic.success,
+    backgroundColor: Colors.semantic.successBg,
+  },
+  statusWarning: {
+    borderColor: Colors.semantic.warning,
+    backgroundColor: Colors.semantic.warningBg,
+  },
+  statusError: {
+    borderColor: Colors.semantic.error,
+    backgroundColor: Colors.semantic.errorBg,
+  },
+  statusText: {
+    ...TextPresets.label,
+    color: Colors.neutral[800],
+  },
+  degradedHint: {
+    ...TextPresets.caption,
+    marginTop: Spacing.xs,
     color: Colors.neutral[600],
   },
   recentTargetsSection: {

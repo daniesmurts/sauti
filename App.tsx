@@ -6,6 +6,7 @@ import {
   initializeApp,
   MainGatewayPlaceholder,
 } from './src/app';
+import {initializePushNotifications} from './src/core/notifications';
 
 type AppShellStatus = 'initializing' | 'main' | 'auth' | 'error';
 
@@ -85,6 +86,10 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  React.useEffect(() => {
+    void initializePushNotifications();
   }, []);
 
   if (state.status === 'main') {
