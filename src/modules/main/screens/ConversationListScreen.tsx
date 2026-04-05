@@ -21,6 +21,9 @@ export interface ConversationListScreenProps {
   onArchiveConversation?(roomId: string): Promise<void> | void;
   onMuteConversation?(roomId: string): Promise<void> | void;
   proxyStatus?: 'connected' | 'connecting' | 'failed' | 'disabled';
+  /** True when the VPN tunnel specifically failed and the app fell back to direct connection. */
+  vpnTunnelFailed?: boolean;
+  onRetryProxy?(): void;
   networkState?: 'connected' | 'disconnected' | 'degraded';
   recentTargets?: string[];
   onStartRecentTarget?(target: string): Promise<void> | void;
@@ -144,6 +147,8 @@ export function ConversationListScreen({
   onArchiveConversation,
   onMuteConversation,
   proxyStatus = 'disabled',
+  vpnTunnelFailed = false,
+  onRetryProxy,
   networkState = 'connected',
   recentTargets = [],
   onStartRecentTarget,
@@ -262,6 +267,30 @@ export function ConversationListScreen({
           <Text style={styles.degradedHint}>
             Network is degraded. Messages will retry automatically.
           </Text>
+        ) : null}
+
+        {vpnTunnelFailed ? (
+          <View style={styles.vpnWarningCard} testID="vpn-tunnel-failure-warning">
+            <View style={styles.vpnWarningBody}>
+              <Text style={styles.vpnWarningTitle}>
+                VPN tunnel failed — running unprotected
+              </Text>
+              <Text style={styles.vpnWarningDetail}>
+                The secure proxy could not start. Your messages are being sent
+                without VPN protection. Tap Retry to attempt reconnection.
+              </Text>
+            </View>
+            {onRetryProxy ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="retry-proxy"
+                activeOpacity={0.85}
+                onPress={onRetryProxy}
+                style={styles.vpnRetryButton}>
+                <Text style={styles.vpnRetryText}>Retry</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         ) : null}
 
         {onStartConversation && isComposerOpen ? (
@@ -817,6 +846,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   fabLabel: {
+    ...TextPresets.label,
+    color: Colors.neutral[0],
+    fontWeight: '600',
+  },
+  vpnWarningCard: {
+    marginTop: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.semantic.error,
+    backgroundColor: Colors.semantic.errorBg,
+  },
+  vpnWarningBody: {
+    flex: 1,
+    gap: Spacing.xxs,
+  },
+  vpnWarningTitle: {
+    ...TextPresets.label,
+    color: Colors.semantic.error,
+    fontWeight: '600',
+  },
+  vpnWarningDetail: {
+    ...TextPresets.caption,
+    color: Colors.neutral[700],
+  },
+  vpnRetryButton: {
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.semantic.error,
+  },
+  vpnRetryText: {
     ...TextPresets.label,
     color: Colors.neutral[0],
     fontWeight: '600',

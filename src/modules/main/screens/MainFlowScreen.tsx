@@ -1,6 +1,7 @@
 import React from 'react';
 
 import {getCoreAppRuntime} from '../../../core/runtime';
+import {Platform} from 'react-native';
 
 import {
   createRuntimeRecentConversationTargetsStore,
@@ -246,6 +247,18 @@ export function MainFlowScreen({
       <ConversationListScreen
         conversations={conversations}
         proxyStatus={proxyStatus}
+        vpnTunnelFailed={Platform.OS === 'android' && proxyStatus === 'failed'}
+        onRetryProxy={() => {
+          setProxyStatus('connecting');
+          try {
+            const runtime = getCoreAppRuntime();
+            void runtime.recover().catch(() => {
+              setProxyStatus('failed');
+            });
+          } catch {
+            setProxyStatus('failed');
+          }
+        }}
         networkState={networkState}
         recentTargets={recentTargets}
         onStartRecentTarget={target => {

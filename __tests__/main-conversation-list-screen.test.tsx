@@ -615,4 +615,86 @@ describe('ConversationListScreen', () => {
       jest.useRealTimers();
     }
   });
+
+  it('shows VPN tunnel failure warning card when vpnTunnelFailed is true', () => {
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        proxyStatus="failed"
+        vpnTunnelFailed
+        onSelectConversation={() => {}}
+      />,
+    );
+
+    try {
+      const warningTitle = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('VPN tunnel failed'),
+      );
+      expect(warningTitle.length).toBeGreaterThan(0);
+
+      const warningDetail = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('running unprotected') ||
+          (node.type === 'Text' &&
+            typeof node.props.children === 'string' &&
+            node.props.children.includes('without VPN protection')),
+      );
+      expect(warningDetail.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('does not show VPN warning card when vpnTunnelFailed is false', () => {
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        proxyStatus="failed"
+        vpnTunnelFailed={false}
+        onSelectConversation={() => {}}
+      />,
+    );
+
+    try {
+      const warningTitle = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('VPN tunnel failed'),
+      );
+      expect(warningTitle).toHaveLength(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('calls onRetryProxy when Retry button is pressed in VPN warning card', () => {
+    const onRetryProxy = jest.fn();
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        proxyStatus="failed"
+        vpnTunnelFailed
+        onRetryProxy={onRetryProxy}
+        onSelectConversation={() => {}}
+      />,
+    );
+
+    try {
+      const retryButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'retry-proxy',
+      );
+      retryButton.props.onPress();
+      expect(onRetryProxy).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
 });

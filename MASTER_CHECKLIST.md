@@ -101,7 +101,7 @@ Acceptance criteria:
 - [x] Native Android VpnService scaffold implemented.
 - [x] JS bridge module for enable/disable/status implemented.
 - [x] Tunnel lifecycle scaffold integrated with ProxyManager with resilient fallback.
-- [ ] Failure fallback path with explicit user warning implemented.
+- [x] Failure fallback path with explicit user warning implemented.
 - [ ] Device-level validation test plan documented and executed.
 
 ### 11) Conduit + Nginx + V2Ray server setup
