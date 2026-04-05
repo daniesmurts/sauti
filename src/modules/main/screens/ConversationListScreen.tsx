@@ -1,5 +1,6 @@
 import React from 'react';
 import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Swipeable} from 'react-native-gesture-handler';
 
 import {Avatar, Button, Input, Screen} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
@@ -17,6 +18,8 @@ export interface ConversationPreview {
 export interface ConversationListScreenProps {
   conversations: ConversationPreview[];
   onSelectConversation(roomId: string): void;
+  onArchiveConversation?(roomId: string): Promise<void> | void;
+  onMuteConversation?(roomId: string): Promise<void> | void;
   proxyStatus?: 'connected' | 'connecting' | 'failed' | 'disabled';
   networkState?: 'connected' | 'disconnected' | 'degraded';
   recentTargets?: string[];
@@ -47,6 +50,11 @@ function renderProxyStatusLabel(
 type StartTargetHint = {
   text: string;
   suggestions: string[];
+};
+
+type SearchableConversationResult = {
+  roomId: string;
+  displayName: string;
 };
 
 const CLEAR_CONFIRM_TIMEOUT_MS = 4000;
@@ -107,9 +115,34 @@ function renderUnreadBadge(unreadCount: number): React.JSX.Element | null {
   );
 }
 
+function findSearchableConversations(
+  conversations: ConversationPreview[],
+  query: string,
+): SearchableConversationResult[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return conversations.slice(0, 5).map(conversation => ({
+      roomId: conversation.roomId,
+      displayName: conversation.displayName,
+    }));
+  }
+
+  return conversations
+    .filter(conversation =>
+      conversation.displayName.toLowerCase().includes(normalized),
+    )
+    .slice(0, 5)
+    .map(conversation => ({
+      roomId: conversation.roomId,
+      displayName: conversation.displayName,
+    }));
+}
+
 export function ConversationListScreen({
   conversations,
   onSelectConversation,
+  onArchiveConversation,
+  onMuteConversation,
   proxyStatus = 'disabled',
   networkState = 'connected',
   recentTargets = [],
@@ -123,7 +156,38 @@ export function ConversationListScreen({
   const [target, setTarget] = React.useState('');
   const [localError, setLocalError] = React.useState<string | undefined>();
   const [isConfirmingClear, setIsConfirmingClear] = React.useState(false);
+  const [isComposerOpen, setIsComposerOpen] = React.useState(false);
+  const [archivedRoomIds, setArchivedRoomIds] = React.useState<string[]>([]);
+  const [mutedRoomIds, setMutedRoomIds] = React.useState<string[]>([]);
   const hint = React.useMemo(() => deriveStartTargetHint(target), [target]);
+  const visibleConversations = React.useMemo(
+    () => conversations.filter(conversation => !archivedRoomIds.includes(conversation.roomId)),
+    [archivedRoomIds, conversations],
+  );
+  const searchableConversations = React.useMemo(
+    () => findSearchableConversations(visibleConversations, target),
+    [visibleConversations, target],
+  );
+
+  const handleArchiveConversation = React.useCallback(
+    (roomId: string) => {
+      setArchivedRoomIds(current => (current.includes(roomId) ? current : [...current, roomId]));
+      void onArchiveConversation?.(roomId);
+    },
+    [onArchiveConversation],
+  );
+
+  const handleMuteConversation = React.useCallback(
+    (roomId: string) => {
+      setMutedRoomIds(current =>
+        current.includes(roomId)
+          ? current.filter(existingId => existingId !== roomId)
+          : [...current, roomId],
+      );
+      void onMuteConversation?.(roomId);
+    },
+    [onMuteConversation],
+  );
 
   React.useEffect(() => {
     if (recentTargets.length === 0 && isConfirmingClear) {
@@ -159,6 +223,7 @@ export function ConversationListScreen({
     setLocalError(undefined);
     void onStartConversation(parsed.target.normalized);
     setTarget('');
+    setIsComposerOpen(false);
   }, [onStartConversation, target]);
 
   return (
@@ -199,8 +264,49 @@ export function ConversationListScreen({
           </Text>
         ) : null}
 
-        {onStartConversation ? (
+        {onStartConversation && isComposerOpen ? (
           <View style={styles.startConversationCard}>
+            <View style={styles.startConversationHeader}>
+              <Text style={styles.startConversationTitle}>New Conversation</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="close-new-conversation"
+                activeOpacity={0.85}
+                onPress={() => {
+                  setIsComposerOpen(false);
+                  setTarget('');
+                  setLocalError(undefined);
+                  setIsConfirmingClear(false);
+                }}>
+                <Text style={styles.closeComposerText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            {searchableConversations.length > 0 ? (
+              <View style={styles.searchResultsSection}>
+                <Text style={styles.searchResultsLabel}>Contacts</Text>
+                <View style={styles.searchResultsList}>
+                  {searchableConversations.map(result => (
+                    <TouchableOpacity
+                      key={result.roomId}
+                      accessibilityRole="button"
+                      accessibilityLabel={`search-contact-result-${result.roomId}`}
+                      style={styles.searchResultRow}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setIsComposerOpen(false);
+                        setTarget('');
+                        setLocalError(undefined);
+                        onSelectConversation(result.roomId);
+                      }}>
+                      <Avatar name={result.displayName} size="sm" />
+                      <Text style={styles.searchResultText}>{result.displayName}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {recentTargets.length > 0 ? (
               <View style={styles.recentTargetsSection}>
                 <View style={styles.recentTargetsHeader}>
@@ -270,7 +376,7 @@ export function ConversationListScreen({
             ) : null}
 
             <Input
-              label="Matrix ID or Room Alias"
+              label="Search contacts or Matrix target"
               placeholder="@friend:server or #room:server"
               value={target}
               onChangeText={value => {
@@ -310,6 +416,11 @@ export function ConversationListScreen({
             {startConversationError ? (
               <Text style={styles.startError}>{startConversationError}</Text>
             ) : null}
+            {searchableConversations.length === 0 && target.trim().length > 0 ? (
+              <Text style={styles.searchEmptyHint}>
+                No matching contacts. Enter a full Matrix target to start a new chat.
+              </Text>
+            ) : null}
             <Button
               label="Start Chat"
               size="sm"
@@ -322,44 +433,90 @@ export function ConversationListScreen({
       </View>
 
       <FlatList
-        data={conversations}
+        data={visibleConversations}
         keyExtractor={item => item.roomId}
         contentContainerStyle={styles.listContent}
         renderItem={({item}) => (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`conversation-row-${item.roomId}`}
-            activeOpacity={0.8}
-            style={styles.row}
-            onPress={() => onSelectConversation(item.roomId)}>
-            <View>
-              <Avatar name={item.displayName} size="md" />
-              <View
-                style={[
-                  styles.presenceDot,
-                  item.isOnline ? styles.presenceOnline : styles.presenceOffline,
-                ]}
-              />
-            </View>
-
-            <View style={styles.rowBody}>
-              <View style={styles.rowTop}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {item.displayName}
-                </Text>
-                <Text style={styles.time}>{item.timestampLabel}</Text>
+          <Swipeable
+            overshootRight={false}
+            renderRightActions={() => (
+              <View style={styles.rowActions}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`mute-conversation-${item.roomId}`}
+                  style={[styles.rowActionButton, styles.rowActionMute]}
+                  activeOpacity={0.85}
+                  onPress={() => handleMuteConversation(item.roomId)}>
+                  <Text style={styles.rowActionText}>
+                    {mutedRoomIds.includes(item.roomId) ? 'Unmute' : 'Mute'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`archive-conversation-${item.roomId}`}
+                  style={[styles.rowActionButton, styles.rowActionArchive]}
+                  activeOpacity={0.85}
+                  onPress={() => handleArchiveConversation(item.roomId)}>
+                  <Text style={styles.rowActionText}>Archive</Text>
+                </TouchableOpacity>
+              </View>
+            )}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`conversation-row-${item.roomId}`}
+              activeOpacity={0.8}
+              style={styles.row}
+              onPress={() => onSelectConversation(item.roomId)}>
+              <View>
+                <Avatar name={item.displayName} size="md" />
+                <View
+                  style={[
+                    styles.presenceDot,
+                    item.isOnline ? styles.presenceOnline : styles.presenceOffline,
+                  ]}
+                />
               </View>
 
-              <View style={styles.rowBottom}>
-                <Text numberOfLines={1} style={styles.preview}>
-                  {item.lastMessage}
-                </Text>
-                {renderUnreadBadge(item.unreadCount)}
+              <View style={styles.rowBody}>
+                <View style={styles.rowTop}>
+                  <Text numberOfLines={1} style={styles.name}>
+                    {item.displayName}
+                  </Text>
+                  <View style={styles.rowMetaGroup}>
+                    {mutedRoomIds.includes(item.roomId) ? (
+                      <Text style={styles.mutedBadge}>Muted</Text>
+                    ) : null}
+                    <Text style={styles.time}>{item.timestampLabel}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.rowBottom}>
+                  <Text numberOfLines={1} style={styles.preview}>
+                    {item.lastMessage}
+                  </Text>
+                  {renderUnreadBadge(item.unreadCount)}
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Swipeable>
         )}
       />
+
+      {onStartConversation ? (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="open-new-conversation"
+          activeOpacity={0.9}
+          style={styles.fab}
+          onPress={() => {
+            setIsComposerOpen(true);
+            setLocalError(undefined);
+            setIsConfirmingClear(false);
+          }}>
+          <Text style={styles.fabPlus}>+</Text>
+          <Text style={styles.fabLabel}>New</Text>
+        </TouchableOpacity>
+      ) : null}
     </Screen>
   );
 }
@@ -385,9 +542,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.neutral[200],
   },
+  startConversationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  startConversationTitle: {
+    ...TextPresets.body,
+    color: Colors.neutral[900],
+    fontWeight: '600',
+  },
+  closeComposerText: {
+    ...TextPresets.label,
+    color: Colors.brand[700],
+  },
   startHint: {
     ...TextPresets.caption,
     color: Colors.neutral[600],
+  },
+  searchResultsSection: {
+    gap: Spacing.xs,
+  },
+  searchResultsLabel: {
+    ...TextPresets.label,
+    color: Colors.neutral[500],
+  },
+  searchResultsList: {
+    gap: Spacing.xs,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.neutral[50],
+  },
+  searchResultText: {
+    ...TextPresets.body,
+    color: Colors.neutral[800],
   },
   statusRow: {
     marginTop: Spacing.sm,
@@ -493,8 +688,12 @@ const styles = StyleSheet.create({
     ...TextPresets.caption,
     color: Colors.semantic.error,
   },
+  searchEmptyHint: {
+    ...TextPresets.caption,
+    color: Colors.neutral[600],
+  },
   listContent: {
-    paddingBottom: Spacing['3xl'],
+    paddingBottom: Spacing['3xl'] + 72,
   },
   row: {
     flexDirection: 'row',
@@ -513,6 +712,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  rowMetaGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   rowBottom: {
     flexDirection: 'row',
@@ -534,6 +738,32 @@ const styles = StyleSheet.create({
   time: {
     ...TextPresets.label,
     color: Colors.neutral[500],
+  },
+  mutedBadge: {
+    ...TextPresets.label,
+    color: Colors.semantic.warning,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginVertical: Spacing.xs,
+  },
+  rowActionButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 84,
+    paddingHorizontal: Spacing.sm,
+  },
+  rowActionMute: {
+    backgroundColor: Colors.semantic.warning,
+  },
+  rowActionArchive: {
+    backgroundColor: Colors.neutral[700],
+  },
+  rowActionText: {
+    ...TextPresets.label,
+    color: Colors.neutral[0],
+    fontWeight: '600',
   },
   unreadBadge: {
     minWidth: 20,
@@ -563,5 +793,32 @@ const styles = StyleSheet.create({
   },
   presenceOffline: {
     backgroundColor: Colors.neutral[400],
+  },
+  fab: {
+    position: 'absolute',
+    right: Spacing.base,
+    bottom: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.brand[500],
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  fabPlus: {
+    ...TextPresets.body,
+    color: Colors.neutral[0],
+    fontWeight: '700',
+  },
+  fabLabel: {
+    ...TextPresets.label,
+    color: Colors.neutral[0],
+    fontWeight: '600',
   },
 });

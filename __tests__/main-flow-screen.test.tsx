@@ -209,9 +209,20 @@ describe('MainFlowScreen', () => {
         await Promise.resolve();
       });
 
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root
         .findAllByType(TextInput)
-        .find(node => node.props.accessibilityLabel === 'Matrix ID or Room Alias');
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
       expect(input).toBeDefined();
 
       await act(async () => {
@@ -270,6 +281,17 @@ describe('MainFlowScreen', () => {
 
     try {
       await act(async () => {
+        await Promise.resolve();
+      });
+
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
         await Promise.resolve();
       });
 

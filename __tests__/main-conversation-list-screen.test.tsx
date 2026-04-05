@@ -90,6 +90,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root.findByType(TextInput);
 
       await act(async () => {
@@ -132,6 +143,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root.findByType(TextInput);
 
       await act(async () => {
@@ -166,6 +188,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root.findByType(TextInput);
 
       await act(async () => {
@@ -196,6 +229,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root.findByType(TextInput);
 
       await act(async () => {
@@ -235,6 +279,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const chip = tree.root.find(
         node =>
           node.type === TouchableOpacity &&
@@ -267,6 +322,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const removeButton = tree.root.find(
         node =>
           node.type === TouchableOpacity &&
@@ -299,6 +365,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const clearButton = tree.root.find(
         node =>
           node.type === TouchableOpacity &&
@@ -357,6 +434,115 @@ describe('ConversationListScreen', () => {
     }
   });
 
+  it('opens composer from FAB and lets user select an existing contact result', async () => {
+    const onSelectConversation = jest.fn();
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        onSelectConversation={onSelectConversation}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const input = tree.root.findByType(TextInput);
+      await act(async () => {
+        input.props.onChangeText('Kwame');
+        await Promise.resolve();
+      });
+
+      const result = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel ===
+            'search-contact-result-!room-1:sauti.app',
+      );
+
+      await act(async () => {
+        result.props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(onSelectConversation).toHaveBeenCalledTimes(1);
+      expect(onSelectConversation).toHaveBeenCalledWith('!room-1:sauti.app');
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('archives a conversation row from swipe actions', async () => {
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        onSelectConversation={() => {}}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const archiveButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'archive-conversation-!room-1:sauti.app',
+      );
+
+      await act(async () => {
+        archiveButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const remainingRows = tree.root.findAll(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'conversation-row-!room-1:sauti.app',
+      );
+      expect(remainingRows).toHaveLength(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('toggles muted state from swipe actions', async () => {
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        onSelectConversation={() => {}}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const muteButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'mute-conversation-!room-1:sauti.app',
+      );
+
+      await act(async () => {
+        muteButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const mutedNodes = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Muted',
+      );
+      expect(mutedNodes.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('expires clear confirmation after timeout and requires reconfirmation', async () => {
     jest.useFakeTimers();
     const onClearRecentTargets = jest.fn();
@@ -371,6 +557,17 @@ describe('ConversationListScreen', () => {
     );
 
     try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const clearButton = tree.root.find(
         node =>
           node.type === TouchableOpacity &&

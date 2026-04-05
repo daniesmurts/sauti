@@ -64,8 +64,8 @@ Acceptance criteria:
 - [x] Conversation list renders room rows with unread and metadata.
 - [x] Chat room renders messages and send input.
 - [x] Runtime-backed loading/sending is wired through gateway.
-- [ ] Swipe archive/mute actions implemented.
-- [ ] FAB to NewConversation with contact search implemented.
+- [x] Swipe archive/mute actions implemented.
+- [x] FAB to NewConversation with contact search implemented.
 - [x] Connection status banner and offline banner shown in list UI.
 
 ### 7) Offline queue with retry
