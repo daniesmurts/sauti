@@ -9,8 +9,9 @@ import {type AuthStoreSnapshot} from '../store';
 
 import {OTPVerificationScreen, type OTPSubmitPayload} from './OTPVerificationScreen';
 import {PhoneEntryScreen} from './PhoneEntryScreen';
+import {ProfileSetupScreen, type ProfileSetupPayload} from './ProfileSetupScreen';
 
-type AuthFlowStep = 'phone_entry' | 'otp_verification';
+type AuthFlowStep = 'phone_entry' | 'otp_verification' | 'profile_setup';
 
 function buildRegistrationPassword(phoneNumber: string, otpCode: string): string {
   const digits = phoneNumber.replace(/\D/g, '');
@@ -38,6 +39,7 @@ export function AuthFlowScreen({controller}: AuthFlowScreenProps): React.JSX.Ele
   );
   const [step, setStep] = React.useState<AuthFlowStep>('phone_entry');
   const [phoneNumber, setPhoneNumber] = React.useState('');
+  const [pendingOtpCode, setPendingOtpCode] = React.useState('');
 
   React.useEffect(() => {
     return resolvedController.subscribe(setSnapshot);
@@ -48,16 +50,21 @@ export function AuthFlowScreen({controller}: AuthFlowScreenProps): React.JSX.Ele
     setStep('otp_verification');
   }, []);
 
-  const handleOtpSubmit = React.useCallback(
-    async ({otpCode, displayName}: OTPSubmitPayload) => {
+  const handleOtpSubmit = React.useCallback(({otpCode}: OTPSubmitPayload) => {
+    setPendingOtpCode(otpCode);
+    setStep('profile_setup');
+  }, []);
+
+  const handleProfileSubmit = React.useCallback(
+    async ({displayName}: ProfileSetupPayload) => {
       await resolvedController.registerAndBootstrap({
         phoneNumber,
-        otpCode,
-        password: buildRegistrationPassword(phoneNumber, otpCode),
+        otpCode: pendingOtpCode,
+        password: buildRegistrationPassword(phoneNumber, pendingOtpCode),
         displayName,
       });
     },
-    [phoneNumber, resolvedController],
+    [pendingOtpCode, phoneNumber, resolvedController],
   );
 
   const isSubmitting = snapshot.status === 'registering';
@@ -81,14 +88,23 @@ export function AuthFlowScreen({controller}: AuthFlowScreenProps): React.JSX.Ele
     return <PhoneEntryScreen disabled={isSubmitting} onContinue={handlePhoneContinue} />;
   }
 
+  if (step === 'otp_verification') {
+    return (
+      <OTPVerificationScreen
+        phoneNumber={phoneNumber}
+        loading={isSubmitting}
+        errorMessage={remoteError}
+        onBack={() => setStep('phone_entry')}
+        onSubmit={handleOtpSubmit}
+      />
+    );
+  }
+
   return (
-    <OTPVerificationScreen
-      phoneNumber={phoneNumber}
+    <ProfileSetupScreen
       loading={isSubmitting}
-      errorMessage={remoteError}
-      onBack={() => setStep('phone_entry')}
       onSubmit={payload => {
-        void handleOtpSubmit(payload);
+        void handleProfileSubmit(payload);
       }}
     />
   );

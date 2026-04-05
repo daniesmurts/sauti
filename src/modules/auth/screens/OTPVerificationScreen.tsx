@@ -6,7 +6,6 @@ import {Colors, Spacing, TextPresets} from '../../../ui/tokens';
 
 export interface OTPSubmitPayload {
   otpCode: string;
-  displayName?: string;
 }
 
 export interface OTPVerificationScreenProps {
@@ -29,7 +28,6 @@ export function OTPVerificationScreen({
   onSubmit,
 }: OTPVerificationScreenProps): React.JSX.Element {
   const [otpCode, setOtpCode] = React.useState('');
-  const [displayName, setDisplayName] = React.useState('');
   const [localError, setLocalError] = React.useState<string | undefined>();
 
   const handleSubmit = React.useCallback(() => {
@@ -41,13 +39,8 @@ export function OTPVerificationScreen({
     }
 
     setLocalError(undefined);
-    const normalizedDisplayName = displayName.trim();
-
-    onSubmit({
-      otpCode: normalizedOtp,
-      displayName: normalizedDisplayName.length > 0 ? normalizedDisplayName : undefined,
-    });
-  }, [displayName, onSubmit, otpCode]);
+    onSubmit({otpCode: normalizedOtp});
+  }, [onSubmit, otpCode]);
 
   return (
     <Screen avoidKeyboard>
@@ -73,16 +66,6 @@ export function OTPVerificationScreen({
           placeholder="123456"
           maxLength={8}
           error={localError}
-          editable={!loading}
-        />
-
-        <Input
-          label="Display Name (Optional)"
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCorrect={false}
-          autoCapitalize="words"
-          placeholder="Kwame"
           editable={!loading}
         />
 

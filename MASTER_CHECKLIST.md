@@ -39,7 +39,7 @@ Acceptance criteria:
 - [x] Auth flow state transitions implemented and tested.
 - [x] Registration service calls Supabase edge endpoint.
 - [ ] Production-grade OTP verification provider is integrated end-to-end.
-- [ ] Profile setup step (display name/avatar) is implemented per spec flow.
+- [x] Profile setup step (display name/avatar) is implemented per spec flow.
 
 ### 4) Matrix client wrapper with offline sync
 Tag: DONE

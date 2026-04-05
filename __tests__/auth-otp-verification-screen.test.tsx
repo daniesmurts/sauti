@@ -17,7 +17,7 @@ function findButtonByLabel(
 }
 
 describe('OTPVerificationScreen', () => {
-  it('submits otp and optional display name when valid', () => {
+  it('submits otp when valid', () => {
     const onSubmit = jest.fn();
     const onBack = jest.fn();
 
@@ -26,14 +26,13 @@ describe('OTPVerificationScreen', () => {
         phoneNumber="+2348012345678"
         onBack={onBack}
         onSubmit={onSubmit}
-      />, 
+      />,
     );
 
     const inputs = tree.root.findAllByType(TextInput);
     try {
       act(() => {
         inputs[0].props.onChangeText('123456');
-        inputs[1].props.onChangeText('Kwame');
       });
 
       act(() => {
@@ -41,10 +40,7 @@ describe('OTPVerificationScreen', () => {
       });
 
       expect(onSubmit).toHaveBeenCalledTimes(1);
-      expect(onSubmit).toHaveBeenCalledWith({
-        otpCode: '123456',
-        displayName: 'Kwame',
-      });
+      expect(onSubmit).toHaveBeenCalledWith({otpCode: '123456'});
     } finally {
       tree.unmount();
     }

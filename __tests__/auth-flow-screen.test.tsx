@@ -78,6 +78,104 @@ describe('AuthFlowScreen', () => {
     }
   });
 
+  it('moves from otp step to profile setup step', async () => {
+    const controller = createMockController();
+    const tree = renderer.create(<AuthFlowScreen controller={controller} />);
+
+    try {
+      // Phone step
+      const phoneInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        phoneInput.props.onChangeText('+234 801 234 5678');
+        await Promise.resolve();
+      });
+      await act(async () => {
+        findButtonByLabel(tree, 'Continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      // OTP step — enter 6-digit code
+      const otpInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        otpInput.props.onChangeText('123456');
+        await Promise.resolve();
+      });
+      await act(async () => {
+        findButtonByLabel(tree, 'Verify').props.onPress();
+        await Promise.resolve();
+      });
+
+      const profileHeading = tree.root.findAll(
+        node =>
+          node.type === 'Text' && node.props.children === 'Set Up Your Profile',
+      );
+      expect(profileHeading.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('completes registration after profile setup', async () => {
+    const registeredRequests: unknown[] = [];
+    const controller = createMockController();
+    const origRegister = controller.registerAndBootstrap.bind(controller);
+    controller.registerAndBootstrap = async req => {
+      registeredRequests.push(req);
+      return origRegister(req);
+    };
+
+    const tree = renderer.create(<AuthFlowScreen controller={controller} />);
+
+    try {
+      // Phone step
+      const phoneInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        phoneInput.props.onChangeText('+234 801 234 5678');
+        await Promise.resolve();
+      });
+      await act(async () => {
+        findButtonByLabel(tree, 'Continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      // OTP step
+      const otpInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        otpInput.props.onChangeText('654321');
+        await Promise.resolve();
+      });
+      await act(async () => {
+        findButtonByLabel(tree, 'Verify').props.onPress();
+        await Promise.resolve();
+      });
+
+      // Profile setup step
+      const nameInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        nameInput.props.onChangeText('Kwame Asante');
+        await Promise.resolve();
+      });
+      await act(async () => {
+        findButtonByLabel(tree, 'profile-setup-continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(registeredRequests).toHaveLength(1);
+      expect((registeredRequests[0] as {displayName: string}).displayName).toBe(
+        'Kwame Asante',
+      );
+
+      const successHeading = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          node.props.children === 'Authentication Complete',
+      );
+      expect(successHeading.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('renders success state when auth snapshot is ready', () => {
     const controller = createMockController('ready');
     const tree = renderer.create(<AuthFlowScreen controller={controller} />);
