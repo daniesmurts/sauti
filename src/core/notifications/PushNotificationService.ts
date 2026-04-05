@@ -7,6 +7,26 @@ export interface PushMessagingAdapter {
   setBackgroundMessageHandler(
     listener: (payload: PushMessagePayload) => Promise<void>,
   ): void;
+  getInitialNotification(): Promise<PushMessagePayload | null>;
+  onNotificationOpenedApp(
+    listener: (payload: PushMessagePayload) => void,
+  ): () => void;
+}
+
+/** Extracts a Matrix room_id from top-level or nested data field. */
+function extractRoomId(payload: PushMessagePayload): string | null {
+  const direct = payload['room_id'];
+  if (typeof direct === 'string' && direct.length > 0) {
+    return direct;
+  }
+  const data = payload['data'];
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    const nested = (data as Record<string, unknown>)['room_id'];
+    if (typeof nested === 'string' && nested.length > 0) {
+      return nested;
+    }
+  }
+  return null;
 }
 
 function createRuntimeAdapter(): PushMessagingAdapter | null {
@@ -20,6 +40,10 @@ function createRuntimeAdapter(): PushMessagingAdapter | null {
           setBackgroundMessageHandler(
             listener: (payload: PushMessagePayload) => Promise<void>,
           ): void;
+          getInitialNotification(): Promise<PushMessagePayload | null>;
+          onNotificationOpenedApp(
+            listener: (payload: PushMessagePayload) => void,
+          ): () => void;
         })
       | undefined;
 
@@ -34,6 +58,9 @@ function createRuntimeAdapter(): PushMessagingAdapter | null {
       onMessage: listener => messaging.onMessage(listener),
       setBackgroundMessageHandler: listener =>
         messaging.setBackgroundMessageHandler(listener),
+      getInitialNotification: () => messaging.getInitialNotification(),
+      onNotificationOpenedApp: listener =>
+        messaging.onNotificationOpenedApp(listener),
     };
   } catch {
     return null;
@@ -88,6 +115,43 @@ export class PushNotificationService {
 
     this.adapter.setBackgroundMessageHandler(listener);
   }
+
+  async getInitialNotificationRoomId(): Promise<string | null> {
+    if (!this.adapter) {
+      return null;
+    }
+    try {
+      const payload = await this.adapter.getInitialNotification();
+      if (!payload) {
+        return null;
+      }
+      return extractRoomId(payload);
+    } catch {
+      return null;
+    }
+  }
+
+  subscribeNotificationOpen(listener: (roomId: string) => void): () => void {
+    if (!this.adapter) {
+      return () => {
+        return;
+      };
+    }
+    let active = true;
+    const platformUnsub = this.adapter.onNotificationOpenedApp(payload => {
+      if (!active) {
+        return;
+      }
+      const roomId = extractRoomId(payload);
+      if (roomId) {
+        listener(roomId);
+      }
+    });
+    return () => {
+      active = false;
+      platformUnsub();
+    };
+  }
 }
 
 const runtimePushService = new PushNotificationService();
@@ -107,4 +171,14 @@ export function registerDefaultBackgroundPushHandler(): void {
     // Placeholder handler for Phase-1 wiring. Domain logic will be added with notifications UX.
     return;
   });
+}
+
+export function getInitialPushNotificationRoomId(): Promise<string | null> {
+  return runtimePushService.getInitialNotificationRoomId();
+}
+
+export function subscribeNotificationOpen(
+  listener: (roomId: string) => void,
+): () => void {
+  return runtimePushService.subscribeNotificationOpen(listener);
 }

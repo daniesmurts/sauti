@@ -78,13 +78,13 @@ Acceptance criteria:
 - [x] Tests validate queue lifecycle and retry behavior.
 
 ### 8) Push notifications (FCM)
-Tag: PARTIAL
+Tag: DONE
 Acceptance criteria:
 - [x] FCM dependency is installed.
 - [x] Device token fetch flow implemented in core notification service.
 - [x] Foreground and background handlers plumbing implemented.
 - [x] Notification permission request flow implemented.
-- [ ] Push-triggered deep link/open behavior implemented.
+- [x] Push-triggered deep link/open behavior implemented.
 
 ### 9) Domain fronting proxy (iOS + Android)
 Tag: PARTIAL

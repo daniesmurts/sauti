@@ -1,10 +1,14 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {NavigationContainer} from '@react-navigation/native';
+import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
 import {StyleSheet, Text, View} from 'react-native';
 
 import {MainFlowScreen} from '../modules/main';
 import {Colors, Spacing, TextPresets} from '../ui/tokens';
+import {
+  getInitialPushNotificationRoomId,
+  subscribeNotificationOpen,
+} from '../core/notifications';
 
 type RootTabParamList = {
   Chats: undefined;
@@ -14,6 +18,7 @@ type RootTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const navigationRef = createNavigationContainerRef<RootTabParamList>();
 
 interface PlaceholderTabScreenProps {
   title: string;
@@ -65,8 +70,34 @@ function SettingsTabScreen(): React.JSX.Element {
 }
 
 export function RootNavigator(): React.JSX.Element {
+  const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Handle notification tap when app was fully quit.
+    void getInitialPushNotificationRoomId().then(roomId => {
+      if (roomId) {
+        setPendingRoomId(roomId);
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Chats');
+        }
+      }
+    });
+
+    // Handle notification tap when app was in background.
+    const unsubscribe = subscribeNotificationOpen(roomId => {
+      setPendingRoomId(roomId);
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('Chats');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Tab.Navigator
         initialRouteName="Chats"
         screenOptions={{
@@ -74,7 +105,14 @@ export function RootNavigator(): React.JSX.Element {
           tabBarActiveTintColor: Colors.brand[600],
           tabBarInactiveTintColor: Colors.neutral[500],
         }}>
-        <Tab.Screen name="Chats" component={MainFlowScreen} />
+        <Tab.Screen name="Chats">
+          {() => (
+            <MainFlowScreen
+              initialRoomId={pendingRoomId ?? undefined}
+              onRoomOpened={() => setPendingRoomId(null)}
+            />
+          )}
+        </Tab.Screen>
         <Tab.Screen name="Calls" component={CallsTabScreen} />
         <Tab.Screen name="Contacts" component={ContactsTabScreen} />
         <Tab.Screen name="Settings" component={SettingsTabScreen} />

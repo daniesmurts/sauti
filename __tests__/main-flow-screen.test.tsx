@@ -331,4 +331,49 @@ describe('MainFlowScreen', () => {
       tree.unmount();
     }
   });
+
+  it('opens the conversation matching initialRoomId from a push notification', async () => {
+    const tree = renderer.create(
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        refreshIntervalMs={0}
+        initialRoomId="!room-kwame:sauti.app"
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const chatTitle = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Kwame Asante',
+      );
+      expect(chatTitle.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('calls onRoomOpened when navigating via initialRoomId', async () => {
+    const onRoomOpened = jest.fn();
+    const tree = renderer.create(
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        refreshIntervalMs={0}
+        initialRoomId="!room-ama:sauti.app"
+        onRoomOpened={onRoomOpened}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(onRoomOpened).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
 });

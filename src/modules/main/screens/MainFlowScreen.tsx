@@ -27,12 +27,18 @@ export interface MainFlowScreenProps {
   gateway?: MainMessagingGateway;
   recentTargetsStore?: RecentConversationTargetsStore;
   refreshIntervalMs?: number;
+  /** Room ID to open immediately — delivered from a push notification tap. */
+  initialRoomId?: string;
+  /** Called once the room from initialRoomId has been opened, so the caller can clear the pending value. */
+  onRoomOpened?: () => void;
 }
 
 export function MainFlowScreen({
   gateway,
   recentTargetsStore,
   refreshIntervalMs = 4000,
+  initialRoomId,
+  onRoomOpened,
 }: MainFlowScreenProps): React.JSX.Element {
   const resolvedGateway = React.useMemo(
     () => gateway ?? createRuntimeMainMessagingGateway(),
@@ -45,6 +51,15 @@ export function MainFlowScreen({
 
   const [activeRoomId, setActiveRoomId] = React.useState<string | null>(null);
   const [draftMessage, setDraftMessage] = React.useState('');
+
+  // Navigate to room when a push notification tap delivers an initialRoomId.
+  React.useEffect(() => {
+    if (initialRoomId) {
+      setActiveRoomId(initialRoomId);
+      setDraftMessage('');
+      onRoomOpened?.();
+    }
+  }, [initialRoomId, onRoomOpened]);
   const [conversations, setConversations] = React.useState<ConversationPreview[]>([]);
   const [activeMessages, setActiveMessages] = React.useState<ChatMessage[]>([]);
   const [recentTargets, setRecentTargets] = React.useState<string[]>([]);
