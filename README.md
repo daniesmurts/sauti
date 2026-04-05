@@ -77,3 +77,23 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+# Supabase Backend Artifacts
+
+This repo now includes local Supabase artifacts under `supabase/` for the app-side endpoints already used by the client:
+
+- `supabase/migrations/20260405130000_create_sauti_auth_and_subscriptions.sql`
+- `supabase/functions/register-matrix-user/`
+- `supabase/functions/subscription-status/`
+
+## Provider Sync Path
+
+The intended subscription sync path is:
+
+1. Stripe / YooMoney / CloudPayments webhook arrives at a service-role endpoint.
+2. The raw provider payload is inserted into `public.subscription_provider_events`.
+3. A service-role worker validates and normalizes the event into `public.user_subscriptions`.
+4. The `subscription-status` edge function reads `public.user_subscriptions` by `matrix_user_id`.
+5. The React Native client caches that response in SecureStore with TTL.
+
+`register-matrix-user` is structured the same way: OTP verification + Matrix provisioning + persistence are separate dependencies so the production provider and Matrix admin integration can be wired without changing the app contract.

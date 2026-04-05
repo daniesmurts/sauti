@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-05
-Status basis: current implementation in SautiApp plus passing test suite (65 suites, 211 tests)
+Status basis: current implementation in SautiApp plus passing test suite (70 suites, 253 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -114,13 +114,13 @@ Acceptance criteria:
 - [ ] Smoke test documented: register, login, send message through proxy.
 
 ### 12) Supabase subscriptions schema + registration edge function
-Tag: PARTIAL
+Tag: DONE
 Acceptance criteria:
 - [x] Client calls expected edge endpoints (register-matrix-user, subscription-status).
 - [x] Subscription cache with TTL in SecureStore implemented.
-- [ ] SQL schema migrations committed in repository.
-- [ ] Edge function implementations committed and tested.
-- [ ] Webhook or provider sync path documented.
+- [x] SQL schema migrations committed in repository.
+- [x] Edge function implementations committed and tested.
+- [x] Webhook or provider sync path documented.
 
 ---
 
