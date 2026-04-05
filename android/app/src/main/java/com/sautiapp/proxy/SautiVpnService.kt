@@ -13,16 +13,47 @@ class SautiVpnService : VpnService() {
     @Volatile
     var isRunning: Boolean = false
       private set
+
+    @Volatile
+    var permissionRequired: Boolean = false
+      private set
+
+    @Volatile
+    var lastError: String? = null
+      private set
+
+    fun markPermissionRequired(message: String) {
+      isRunning = false
+      permissionRequired = true
+      lastError = message
+    }
+
+    fun markRunning() {
+      isRunning = true
+      permissionRequired = false
+      lastError = null
+    }
+
+    fun markStopped() {
+      isRunning = false
+      permissionRequired = false
+    }
+
+    fun markFailure(message: String) {
+      isRunning = false
+      permissionRequired = false
+      lastError = message
+    }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
       ACTION_START -> {
         // Phase-1 scaffold: reserve service lifecycle contract for native V2Ray integration.
-        isRunning = true
+        markRunning()
       }
       ACTION_STOP -> {
-        isRunning = false
+        markStopped()
         stopSelf()
       }
       else -> {
@@ -34,7 +65,7 @@ class SautiVpnService : VpnService() {
   }
 
   override fun onDestroy() {
-    isRunning = false
+    markStopped()
     super.onDestroy()
   }
 

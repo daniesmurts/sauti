@@ -97,3 +97,49 @@ The intended subscription sync path is:
 5. The React Native client caches that response in SecureStore with TTL.
 
 `register-matrix-user` is structured the same way: OTP verification + Matrix provisioning + persistence are separate dependencies so the production provider and Matrix admin integration can be wired without changing the app contract.
+
+# Android VPN Validation
+
+Use one physical Android device for the remaining Phase 1 validation of the VPN fallback path.
+
+## Pre-checks
+
+1. Install a debug build on a physical Android device.
+2. Confirm the app launches and the Chats screen renders.
+3. Connect `adb logcat` before testing:
+
+```bash
+adb logcat | grep -i "Sauti\|VpnService\|ReactNativeJS"
+```
+
+## Validation Pass
+
+1. Fresh install, first launch:
+   Expect VPN permission to be required before tunnel activation.
+2. Deny VPN permission:
+   Expect proxy status to move to failed, and the in-app warning card to show that traffic is running unprotected.
+3. Tap Retry without granting permission:
+   Expect the warning card to remain and diagnostics to continue reporting `permissionRequired=true`.
+4. Grant VPN permission and retry:
+   Expect proxy status to move from connecting to connected.
+5. Trigger a simulated failure path on-device:
+   Confirm the warning card appears and direct fallback keeps the chat list usable.
+6. Send a message while proxy is connected, then while proxy is failed:
+   Confirm the UI remains responsive and status banners match the tunnel state.
+
+## Diagnostics Surface
+
+The Android native bridge now exposes `getDiagnostics()` through `SautiProxyModule`. The payload includes:
+
+- `status`
+- `isRunning`
+- `permissionRequired`
+- `lastError`
+
+Expected checkpoints during validation:
+
+- Permission denied: `status=failed`, `permissionRequired=true`
+- Tunnel running: `status=connected`, `isRunning=true`
+- Service start failure: `status=failed`, `lastError` populated
+
+This prepares the repo for device execution, but the final checklist items for Android proxy/VPN stay partial until the live-device pass is actually run and recorded.

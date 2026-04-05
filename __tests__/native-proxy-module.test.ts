@@ -2,7 +2,9 @@ import {NativeModules} from 'react-native';
 
 import {
   AndroidVpnProxyManager,
+  getNativeProxyDiagnostics,
   getNativeProxyModule,
+  type NativeProxyDiagnostics,
   type NativeProxyModule,
 } from '../src/core/proxy';
 
@@ -22,6 +24,12 @@ describe('NativeProxyModule bridge', () => {
       disable: async () => false,
       isEnabled: async () => false,
       getStatus: async () => 'disabled',
+      getDiagnostics: async () => ({
+        status: 'disabled',
+        isRunning: false,
+        permissionRequired: false,
+        lastError: null,
+      }),
     };
 
     (NativeModules as Record<string, unknown>).SautiProxyModule = nativeModule;
@@ -31,6 +39,26 @@ describe('NativeProxyModule bridge', () => {
     await expect(resolved!.getStatus()).resolves.toBe('disabled');
   });
 
+  it('returns native diagnostics when bridge is available', async () => {
+    const diagnostics: NativeProxyDiagnostics = {
+      status: 'failed',
+      isRunning: false,
+      permissionRequired: true,
+      lastError: 'VPN permission is required before enabling the proxy service.',
+    };
+
+    (NativeModules as Record<string, unknown>).SautiProxyModule = {
+      init: async () => false,
+      enable: async () => false,
+      disable: async () => false,
+      isEnabled: async () => false,
+      getStatus: async () => 'failed',
+      getDiagnostics: async () => diagnostics,
+    };
+
+    await expect(getNativeProxyDiagnostics()).resolves.toEqual(diagnostics);
+  });
+
   it('android vpn proxy manager initializes from native module status', async () => {
     (NativeModules as Record<string, unknown>).SautiProxyModule = {
       init: async () => true,
@@ -38,6 +66,12 @@ describe('NativeProxyModule bridge', () => {
       disable: async () => false,
       isEnabled: async () => true,
       getStatus: async () => 'connected',
+      getDiagnostics: async () => ({
+        status: 'connected',
+        isRunning: true,
+        permissionRequired: false,
+        lastError: null,
+      }),
     };
 
     const manager = new AndroidVpnProxyManager();

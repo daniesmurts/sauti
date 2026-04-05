@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-05
-Status basis: current implementation in SautiApp plus passing test suite (70 suites, 253 tests)
+Status basis: current implementation in SautiApp plus passing test suite (70 suites, 254 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -94,6 +94,7 @@ Acceptance criteria:
 - [x] Runtime can surface proxy status.
 - [x] UI displays explicit proxy status indicator banner/dot for users.
 - [ ] Android domain fronting plus VPN path validated together in real device conditions.
+Validation note: device test procedure is documented in README; live Android execution remains pending.
 
 ### 10) Android V2Ray VPN service (native module)
 Tag: PARTIAL
@@ -103,6 +104,7 @@ Acceptance criteria:
 - [x] Tunnel lifecycle scaffold integrated with ProxyManager with resilient fallback.
 - [x] Failure fallback path with explicit user warning implemented.
 - [ ] Device-level validation test plan documented and executed.
+Validation note: diagnostics surface (`getDiagnostics`) and device test procedure are now in-repo; actual device execution is still pending.
 
 ### 11) Conduit + Nginx + V2Ray server setup
 Tag: BLOCKED
