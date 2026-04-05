@@ -10,8 +10,27 @@
     "test": "jest"
   },
   "dependencies": {
+    "@nozbe/watermelondb": "^0.28.0",
+    "@react-native-community/netinfo": "^12.0.1",
+    "@react-native-firebase/app": "^24.0.0",
+    "@react-native-firebase/messaging": "^24.0.0",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/native-stack": "^6.11.0",
+    "@tanstack/react-query": "^5.96.2",
+    "expo": "^55.0.11",
+    "expo-secure-store": "^55.0.11",
+    "matrix-js-sdk": "41.3.0-rc.0",
     "react": "18.2.0",
-    "react-native": "0.74.5"
+    "react-native": "0.74.5",
+    "react-native-config": "^1.6.1",
+    "react-native-get-random-values": "^2.0.0",
+    "react-native-reanimated": "^3.19.5",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-screens": "^4.24.0",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-vector-icons": "^10.3.0",
+    "text-encoding": "^0.7.0",
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
