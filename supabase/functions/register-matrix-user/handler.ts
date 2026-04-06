@@ -1,4 +1,4 @@
-import {EdgeResponse, jsonResponse} from '../_shared/http';
+import {EdgeResponse, jsonResponse} from '../_shared/http.ts';
 
 export interface RegisterMatrixUserRequest {
   phoneNumber: string;

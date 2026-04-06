@@ -118,18 +118,6 @@ class InMemoryRecentConversationTargetsStore
 }
 
 export function createRuntimeRecentConversationTargetsStore(): RecentConversationTargetsStore {
-  const runtime = globalThis as {expo?: {EventEmitter?: unknown}};
-
-  if (runtime.expo?.EventEmitter) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const secureStore = require('expo-secure-store') as SecureStoreApi;
-      return new SecureStoreRecentConversationTargetsStore(secureStore);
-    } catch {
-      // Fall through to AsyncStorage fallback.
-    }
-  }
-
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const asyncStorage = require('@react-native-async-storage/async-storage') as {

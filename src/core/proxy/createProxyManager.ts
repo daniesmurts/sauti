@@ -31,6 +31,7 @@ export function createDefaultProxyManager(
       new DomainFrontingProxyManager({
         frontingHost: proxyEnv.frontingHost,
         originHost: proxyEnv.originHost,
+        frontingPublicKeyHashes: proxyEnv.frontingPublicKeyHashes,
       }),
       new NoopProxyManager(),
       {

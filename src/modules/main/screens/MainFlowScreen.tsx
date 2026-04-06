@@ -2,6 +2,7 @@ import React from 'react';
 
 import {getCoreAppRuntime} from '../../../core/runtime';
 import {Platform} from 'react-native';
+import {SautiError} from '../../../core/matrix';
 
 import {
   createRuntimeRecentConversationTargetsStore,
@@ -14,6 +15,7 @@ import {
   ConversationListScreen,
   type ConversationPreview,
 } from './ConversationListScreen';
+import {NewConversationScreen} from './NewConversationScreen';
 
 const fallbackConversation: ConversationPreview = {
   roomId: 'room-unavailable',
@@ -34,6 +36,39 @@ export interface MainFlowScreenProps {
   onRoomOpened?: () => void;
 }
 
+function toStartConversationErrorMessage(error: unknown): string {
+  if (error instanceof SautiError && error.code === 'MATRIX_ROOM_OPERATION_FAILED') {
+    const causeMessage =
+      typeof error.cause === 'object' &&
+      error.cause !== null &&
+      'message' in error.cause &&
+      typeof (error.cause as {message?: unknown}).message === 'string'
+        ? (error.cause as {message: string}).message
+        : '';
+
+    if (causeMessage.includes('502')) {
+      return 'Matrix server is temporarily unavailable (502). Please retry in a minute.';
+    }
+
+    if (causeMessage.toLowerCase().includes('network request failed')) {
+      return 'Network path to Matrix failed. Check emulator DNS/proxy and retry.';
+    }
+
+    return 'Unable to contact Matrix server right now. Please retry shortly.';
+  }
+
+  if (error instanceof Error) {
+    const normalized = error.message.toLowerCase();
+    if (normalized.includes('network request failed')) {
+      return 'Network path to Matrix failed. Check emulator DNS/proxy and retry.';
+    }
+
+    return error.message;
+  }
+
+  return 'Unable to start conversation.';
+}
+
 export function MainFlowScreen({
   gateway,
   recentTargetsStore,
@@ -52,6 +87,7 @@ export function MainFlowScreen({
 
   const [activeRoomId, setActiveRoomId] = React.useState<string | null>(null);
   const [draftMessage, setDraftMessage] = React.useState('');
+  const [isNewConversationScreenOpen, setIsNewConversationScreenOpen] = React.useState(false);
 
   // Navigate to room when a push notification tap delivers an initialRoomId.
   React.useEffect(() => {
@@ -148,23 +184,24 @@ export function MainFlowScreen({
   }, []);
 
   React.useEffect(() => {
+    type NetworkState = 'connected' | 'disconnected' | 'degraded';
+    type NetworkMonitorShape = {
+      getState(): NetworkState;
+      subscribe(listener: (state: NetworkState) => void): () => void;
+      start(): void;
+      stop(): void;
+    };
+
     let unsubscribe = () => {
       return;
     };
-    let monitor: {start(): void; stop(): void} | null = null;
+    let monitor: NetworkMonitorShape | null = null;
 
     try {
       // Lazy require keeps NetInfo native dependency out of tests unless available.
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const NetworkMonitor = require('../../../core/network').NetworkMonitor as {
-        new (): {
-          getState(): 'connected' | 'disconnected' | 'degraded';
-          subscribe(
-            listener: (state: 'connected' | 'disconnected' | 'degraded') => void,
-          ): () => void;
-          start(): void;
-          stop(): void;
-        };
+        new (): NetworkMonitorShape;
       };
 
       monitor = new NetworkMonitor();
@@ -232,15 +269,56 @@ export function MainFlowScreen({
         setDraftMessage('');
         await refreshConversations();
       } catch (error) {
-        setStartConversationError(
-          error instanceof Error ? error.message : 'Unable to start conversation.',
-        );
+        setStartConversationError(toStartConversationErrorMessage(error));
       } finally {
         setIsStartingConversation(false);
       }
     },
     [refreshConversations, resolvedGateway, resolvedRecentTargetsStore],
   );
+
+  if (isNewConversationScreenOpen) {
+    return (
+      <NewConversationScreen
+        conversations={conversations}
+        recentTargets={recentTargets}
+        onStartRecentTarget={target => {
+          void handleStartConversation(target);
+        }}
+        onRemoveRecentTarget={target => {
+          void resolvedRecentTargetsStore
+            .removeTarget(target)
+            .then(() => resolvedRecentTargetsStore.listTargets())
+            .then(setRecentTargets)
+            .catch(() => {
+              // keep previous state on storage failures
+            });
+        }}
+        onClearRecentTargets={() => {
+          void resolvedRecentTargetsStore
+            .clearTargets()
+            .then(() => {
+              setRecentTargets([]);
+            })
+            .catch(() => {
+              // keep previous state on storage failures
+            });
+        }}
+        onStartConversation={handleStartConversation}
+        isStartingConversation={isStartingConversation}
+        startConversationError={startConversationError}
+        onSelectConversation={roomId => {
+          setDraftMessage('');
+          setStartConversationError(undefined);
+          setActiveRoomId(roomId);
+          setIsNewConversationScreenOpen(false);
+        }}
+        onBack={() => {
+          setIsNewConversationScreenOpen(false);
+        }}
+      />
+    );
+  }
 
   if (!activeConversation) {
     return (
@@ -290,6 +368,9 @@ export function MainFlowScreen({
           setDraftMessage('');
           setStartConversationError(undefined);
           setActiveRoomId(roomId);
+        }}
+        onOpenNewConversation={() => {
+          setIsNewConversationScreenOpen(true);
         }}
       />
     );

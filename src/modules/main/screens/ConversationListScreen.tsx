@@ -32,6 +32,7 @@ export interface ConversationListScreenProps {
   onStartConversation?(target: string): Promise<void> | void;
   isStartingConversation?: boolean;
   startConversationError?: string;
+  onOpenNewConversation?(): void;
 }
 
 function renderProxyStatusLabel(
@@ -141,6 +142,15 @@ function findSearchableConversations(
     }));
 }
 
+type FilterTabType = 'all' | 'contacts' | 'finance' | 'unknown';
+
+const FILTER_TABS: Array<{key: FilterTabType; label: string}> = [
+  {key: 'all', label: 'All'},
+  {key: 'contacts', label: 'Contacts'},
+  {key: 'finance', label: 'Finance'},
+  {key: 'unknown', label: 'Unknown'},
+];
+
 export function ConversationListScreen({
   conversations,
   onSelectConversation,
@@ -157,6 +167,7 @@ export function ConversationListScreen({
   onStartConversation,
   isStartingConversation = false,
   startConversationError,
+  onOpenNewConversation,
 }: ConversationListScreenProps): React.JSX.Element {
   const [target, setTarget] = React.useState('');
   const [localError, setLocalError] = React.useState<string | undefined>();
@@ -164,11 +175,40 @@ export function ConversationListScreen({
   const [isComposerOpen, setIsComposerOpen] = React.useState(false);
   const [archivedRoomIds, setArchivedRoomIds] = React.useState<string[]>([]);
   const [mutedRoomIds, setMutedRoomIds] = React.useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedFilter, setSelectedFilter] = React.useState<FilterTabType>('all');
+
   const hint = React.useMemo(() => deriveStartTargetHint(target), [target]);
+  
   const visibleConversations = React.useMemo(
     () => conversations.filter(conversation => !archivedRoomIds.includes(conversation.roomId)),
     [archivedRoomIds, conversations],
   );
+
+  const filteredConversations = React.useMemo(() => {
+    let filtered = visibleConversations;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter(conversation =>
+        conversation.displayName.toLowerCase().includes(lowerQuery),
+      );
+    }
+
+    // Filter by category (for now, all categories show all conversations)
+    // This can be extended in the future when conversations have category metadata
+    if (selectedFilter === 'contacts') {
+      // Could filter to direct messages only in future
+    } else if (selectedFilter === 'finance') {
+      // Could filter to finance-related rooms in future
+    } else if (selectedFilter === 'unknown') {
+      // Could filter to uncategorized conversations in future
+    }
+
+    return filtered;
+  }, [visibleConversations, searchQuery, selectedFilter]);
+
   const searchableConversations = React.useMemo(
     () => findSearchableConversations(visibleConversations, target),
     [visibleConversations, target],
@@ -238,6 +278,39 @@ export function ConversationListScreen({
         <Text style={[TextPresets.caption, styles.subheading]}>
           Secure messages routed through Sauti.
         </Text>
+
+        <View style={styles.searchContainer}>
+          <Input
+            label=""
+            placeholder="Search in message"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <View style={styles.filterTabs}>
+          {FILTER_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              accessibilityRole="button"
+              accessibilityLabel={`filter-tab-${tab.key}`}
+              accessibilityState={{selected: selectedFilter === tab.key}}
+              style={[
+                styles.filterTab,
+                selectedFilter === tab.key && styles.filterTabActive,
+              ]}
+              activeOpacity={0.7}
+              onPress={() => setSelectedFilter(tab.key)}>
+              <Text
+                style={[
+                  styles.filterTabText,
+                  selectedFilter === tab.key && styles.filterTabTextActive,
+                ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={styles.statusRow}>
           <View
@@ -462,7 +535,7 @@ export function ConversationListScreen({
       </View>
 
       <FlatList
-        data={visibleConversations}
+        data={filteredConversations}
         keyExtractor={item => item.roomId}
         contentContainerStyle={styles.listContent}
         renderItem={({item}) => (
@@ -538,9 +611,13 @@ export function ConversationListScreen({
           activeOpacity={0.9}
           style={styles.fab}
           onPress={() => {
-            setIsComposerOpen(true);
-            setLocalError(undefined);
-            setIsConfirmingClear(false);
+            if (onOpenNewConversation) {
+              onOpenNewConversation();
+            } else {
+              setIsComposerOpen(true);
+              setLocalError(undefined);
+              setIsConfirmingClear(false);
+            }
           }}>
           <Text style={styles.fabPlus}>+</Text>
           <Text style={styles.fabLabel}>New</Text>
@@ -561,6 +638,36 @@ const styles = StyleSheet.create({
   subheading: {
     color: Colors.neutral[600],
     marginTop: Spacing.xs,
+  },
+  searchContainer: {
+    marginTop: Spacing.base,
+    marginBottom: Spacing.sm,
+  },
+  filterTabs: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: 0,
+  },
+  filterTab: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.neutral[100],
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
+  },
+  filterTabActive: {
+    backgroundColor: Colors.brand[100],
+    borderColor: Colors.brand[300],
+  },
+  filterTabText: {
+    ...TextPresets.label,
+    color: Colors.neutral[700],
+  },
+  filterTabTextActive: {
+    color: Colors.brand[700],
+    fontWeight: '600',
   },
   startConversationCard: {
     marginTop: Spacing.base,

@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 
+import {pickProfileAvatar} from '../api';
 import {Button, Input, Screen} from '../../../ui/components';
 import {Colors, Spacing, TextPresets} from '../../../ui/tokens';
 
@@ -17,6 +18,7 @@ export interface ProfileSetupPayload {
 
 export interface ProfileSetupScreenProps {
   loading?: boolean;
+  pickAvatar?: () => Promise<string | undefined>;
   onSubmit(payload: ProfileSetupPayload): void;
 }
 
@@ -28,18 +30,37 @@ function isValidDisplayName(value: string): boolean {
 
 export function ProfileSetupScreen({
   loading = false,
+  pickAvatar = pickProfileAvatar,
   onSubmit,
 }: ProfileSetupScreenProps): React.JSX.Element {
   const [displayName, setDisplayName] = React.useState('');
   const [avatarUri, setAvatarUri] = React.useState<string | undefined>();
   const [nameError, setNameError] = React.useState<string | undefined>();
+  const [avatarError, setAvatarError] = React.useState<string | undefined>();
+  const [avatarLoading, setAvatarLoading] = React.useState(false);
 
-  const handlePickAvatar = React.useCallback(() => {
-    // Avatar picker integration (camera-roll / react-native-image-picker) will
-    // be wired in Phase 2.  For now we accept a URI injected via test or left
-    // undefined.
-    setAvatarUri(undefined);
-  }, []);
+  const handlePickAvatar = React.useCallback(async () => {
+    if (loading || avatarLoading) {
+      return;
+    }
+
+    setAvatarLoading(true);
+    setAvatarError(undefined);
+
+    try {
+      const selectedAvatarUri = await pickAvatar();
+
+      if (selectedAvatarUri) {
+        setAvatarUri(selectedAvatarUri);
+      }
+    } catch (error) {
+      setAvatarError(
+        error instanceof Error ? error.message : 'Unable to select avatar image.',
+      );
+    } finally {
+      setAvatarLoading(false);
+    }
+  }, [avatarLoading, loading, pickAvatar]);
 
   const handleSubmit = React.useCallback(() => {
     const trimmed = displayName.trim();
@@ -69,7 +90,7 @@ export function ProfileSetupScreen({
           style={styles.avatarContainer}
           onPress={handlePickAvatar}
           accessibilityLabel="pick-avatar"
-          disabled={loading}>
+          disabled={loading || avatarLoading}>
           {avatarUri ? (
             <Image
               source={{uri: avatarUri}}
@@ -83,8 +104,15 @@ export function ProfileSetupScreen({
               </Text>
             </View>
           )}
-          <Text style={styles.avatarHint}>Tap to change</Text>
+          <Text style={styles.avatarHint}>
+            {avatarLoading
+              ? 'Opening photo library...'
+              : avatarUri
+                ? 'Tap to change'
+                : 'Tap to choose a photo'}
+          </Text>
         </TouchableOpacity>
+        {avatarError ? <Text style={styles.avatarError}>{avatarError}</Text> : null}
 
         <Input
           label="Display Name"
@@ -100,7 +128,7 @@ export function ProfileSetupScreen({
           placeholder="Kwame Asante"
           maxLength={60}
           error={nameError}
-          editable={!loading}
+          editable={!loading && !avatarLoading}
         />
 
         <View style={styles.cta}>
@@ -108,7 +136,7 @@ export function ProfileSetupScreen({
             label="Continue"
             onPress={handleSubmit}
             loading={loading}
-            disabled={loading || displayName.trim().length < 2}
+            disabled={loading || avatarLoading || displayName.trim().length < 2}
             accessibilityLabel="profile-setup-continue"
           />
         </View>
@@ -154,6 +182,11 @@ const styles = StyleSheet.create({
   avatarHint: {
     ...TextPresets.caption,
     color: Colors.neutral[500],
+  },
+  avatarError: {
+    ...TextPresets.caption,
+    color: Colors.semantic.error,
+    textAlign: 'center',
   },
   cta: {
     marginTop: Spacing.sm,

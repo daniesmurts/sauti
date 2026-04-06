@@ -1,28 +1,46 @@
 import {serve} from 'https://deno.land/std@0.224.0/http/server.ts';
 
-import {readJsonObject} from '../_shared/http';
+import {readSupabaseFunctionEnv} from '../_shared/env.ts';
+import {readJsonObject} from '../_shared/http.ts';
+import {createMatrixProvisioningGateway} from '../_shared/matrixProvisioning.ts';
+import {postgrestInsert} from '../_shared/postgrest.ts';
 import {
   createRegisterMatrixUserHandler,
-  type MatrixProvisioningGateway,
   type MatrixRegistrationRepository,
   type OtpVerificationGateway,
-} from './handler';
+} from './handler.ts';
+
+const env = readSupabaseFunctionEnv();
 
 const otpVerifier: OtpVerificationGateway = {
-  async verifyOtp() {
-    throw new Error('OTP provider integration not configured.');
+  async verifyOtp(input) {
+    if (!env.otpTestCode) {
+      throw new Error(
+        'OTP provider integration not configured. Set SAUTI_TEST_OTP_CODE for local OTP testing or wire a production provider.',
+      );
+    }
+
+    return input.otpCode === env.otpTestCode;
   },
 };
 
-const matrixGateway: MatrixProvisioningGateway = {
-  async registerUser() {
-    throw new Error('Matrix provisioning integration not configured.');
-  },
-};
+const matrixGateway = createMatrixProvisioningGateway();
 
 const repository: MatrixRegistrationRepository = {
-  async upsertRegistration() {
-    throw new Error('Supabase repository integration not configured.');
+  async upsertRegistration(input) {
+    await postgrestInsert(
+      'matrix_registrations',
+      {
+        phone_number: input.phoneNumber,
+        matrix_user_id: input.matrixUserId,
+        display_name: input.displayName ?? null,
+        last_device_id: input.lastDeviceId ?? null,
+      },
+      {
+        upsert: true,
+        onConflict: 'phone_number',
+      },
+    );
   },
 };
 

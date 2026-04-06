@@ -49,10 +49,20 @@ function createMockController(initialStatus: AuthStoreSnapshot['status'] = 'idle
   };
 }
 
+function createMockOtpService() {
+  return {
+    requestOtp: jest.fn(async () => ({requestId: 'otp-request-1'})),
+    verifyOtp: jest.fn(async () => ({verified: true})),
+  };
+}
+
 describe('AuthFlowScreen', () => {
   it('moves from phone step to otp step', async () => {
     const controller = createMockController();
-    const tree = renderer.create(<AuthFlowScreen controller={controller} />);
+    const otpService = createMockOtpService();
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} otpService={otpService} />,
+    );
 
     try {
       const phoneInput = tree.root.findByType(TextInput);
@@ -68,6 +78,10 @@ describe('AuthFlowScreen', () => {
         await Promise.resolve();
       });
 
+      expect(otpService.requestOtp).toHaveBeenCalledWith({
+        phoneNumber: '+2348012345678',
+      });
+
       const verifyHeading = tree.root.findAll(
         node => node.type === 'Text' && node.props.children === 'Verify OTP',
       );
@@ -80,7 +94,10 @@ describe('AuthFlowScreen', () => {
 
   it('moves from otp step to profile setup step', async () => {
     const controller = createMockController();
-    const tree = renderer.create(<AuthFlowScreen controller={controller} />);
+    const otpService = createMockOtpService();
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} otpService={otpService} />,
+    );
 
     try {
       // Phone step
@@ -105,6 +122,12 @@ describe('AuthFlowScreen', () => {
         await Promise.resolve();
       });
 
+      expect(otpService.verifyOtp).toHaveBeenCalledWith({
+        phoneNumber: '+2348012345678',
+        otpCode: '123456',
+        requestId: 'otp-request-1',
+      });
+
       const profileHeading = tree.root.findAll(
         node =>
           node.type === 'Text' && node.props.children === 'Set Up Your Profile',
@@ -118,13 +141,16 @@ describe('AuthFlowScreen', () => {
   it('completes registration after profile setup', async () => {
     const registeredRequests: unknown[] = [];
     const controller = createMockController();
+    const otpService = createMockOtpService();
     const origRegister = controller.registerAndBootstrap.bind(controller);
     controller.registerAndBootstrap = async req => {
       registeredRequests.push(req);
       return origRegister(req);
     };
 
-    const tree = renderer.create(<AuthFlowScreen controller={controller} />);
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} otpService={otpService} />,
+    );
 
     try {
       // Phone step
@@ -188,6 +214,99 @@ describe('AuthFlowScreen', () => {
       );
 
       expect(successHeading.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('stays on phone entry and shows request error when otp request fails', async () => {
+    const controller = createMockController();
+    const otpService = {
+      requestOtp: jest.fn(async () => {
+        throw new Error('SMS provider unavailable');
+      }),
+      verifyOtp: jest.fn(async () => ({verified: true})),
+    };
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} otpService={otpService} />,
+    );
+
+    try {
+      const phoneInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        phoneInput.props.onChangeText('+234 801 234 5678');
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        findButtonByLabel(tree, 'Continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      const signInHeading = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Sign in to Sauti',
+      );
+      const errorNodes = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('SMS provider unavailable'),
+      );
+
+      expect(signInHeading.length).toBeGreaterThan(0);
+      expect(errorNodes.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('stays on otp step and shows verify error when otp verification fails', async () => {
+    const controller = createMockController();
+    const otpService = {
+      requestOtp: jest.fn(async () => ({requestId: 'otp-request-1'})),
+      verifyOtp: jest.fn(async () => {
+        throw new Error('Invalid verification code');
+      }),
+    };
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} otpService={otpService} />,
+    );
+
+    try {
+      const phoneInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        phoneInput.props.onChangeText('+234 801 234 5678');
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        findButtonByLabel(tree, 'Continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      const otpInput = tree.root.findByType(TextInput);
+      await act(async () => {
+        otpInput.props.onChangeText('654321');
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        findButtonByLabel(tree, 'Verify').props.onPress();
+        await Promise.resolve();
+      });
+
+      const verifyHeading = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Verify OTP',
+      );
+      const errorNodes = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('Invalid verification code'),
+      );
+
+      expect(verifyHeading.length).toBeGreaterThan(0);
+      expect(errorNodes.length).toBeGreaterThan(0);
     } finally {
       tree.unmount();
     }

@@ -15,8 +15,17 @@ import renderer, {act} from 'react-test-renderer';
 
 jest.mock('../src/app', () => ({
   initializeApp: jest.fn(),
-  MainGatewayPlaceholder: () => null,
-  AuthGatewayPlaceholder: () => null,
+  subscribeAppStartup: jest.fn(() => () => undefined),
+  MainGatewayPlaceholder: () => {
+    const ReactNative = require('react-native');
+
+    return <ReactNative.View testID="main-gateway" />;
+  },
+  AuthGatewayPlaceholder: () => {
+    const ReactNative = require('react-native');
+
+    return <ReactNative.View testID="auth-gateway" />;
+  },
 }));
 
 jest.mock('../src/core/notifications', () => ({
@@ -36,8 +45,11 @@ jest.mock('../src/core/notifications', () => ({
 }));
 
 describe('App', () => {
+  const subscribeAppStartup = jest.requireMock('../src/app').subscribeAppStartup as jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    subscribeAppStartup.mockImplementation(() => () => undefined);
   });
 
   it('renders MainGatewayPlaceholder when startup is ready', async () => {
@@ -53,8 +65,7 @@ describe('App', () => {
     });
 
     expect(initializeApp).toHaveBeenCalledTimes(1);
-    const json = tree!.toJSON() as renderer.ReactTestRendererJSON;
-    expect(json.type).toBe('View');
+    expect(tree!.root.findByProps({testID: 'main-gateway'})).toBeTruthy();
   });
 
   it('renders AuthGatewayPlaceholder when startup is signed_out', async () => {
@@ -70,8 +81,7 @@ describe('App', () => {
     });
 
     expect(initializeApp).toHaveBeenCalledTimes(1);
-    const json = tree!.toJSON() as renderer.ReactTestRendererJSON;
-    expect(json.type).toBe('View');
+    expect(tree!.root.findByProps({testID: 'auth-gateway'})).toBeTruthy();
   });
 
   it('renders error card when startup fails', async () => {
@@ -89,5 +99,34 @@ describe('App', () => {
     expect(initializeApp).toHaveBeenCalledTimes(1);
     const json = tree!.toJSON();
     expect(json).not.toBeNull();
+  });
+
+  it('switches from auth flow to main flow when startup subscription reports ready', async () => {
+    let startupListener: ((snapshot: {status: string; reason?: string; errorMessage?: string}) => void) | null = null;
+
+    subscribeAppStartup.mockImplementation(listener => {
+      startupListener = listener;
+      return () => undefined;
+    });
+
+    (initializeApp as jest.Mock).mockResolvedValue({
+      route: 'auth',
+      startup: {status: 'signed_out', reason: 'session_missing'},
+    });
+
+    let tree: renderer.ReactTestRenderer;
+    await act(async () => {
+      tree = renderer.create(<App />);
+      await Promise.resolve();
+    });
+
+    expect(tree!.root.findByProps({testID: 'auth-gateway'})).toBeTruthy();
+
+    await act(async () => {
+      startupListener?.({status: 'ready'});
+      await Promise.resolve();
+    });
+
+    expect(tree!.root.findByProps({testID: 'main-gateway'})).toBeTruthy();
   });
 });

@@ -53,17 +53,6 @@ function createInMemorySecureStore(): SecureStoreApi {
 }
 
 function getDefaultSecureStore(): SecureStoreApi {
-  const runtime = globalThis as {expo?: {EventEmitter?: unknown}};
-
-  if (runtime.expo?.EventEmitter) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      return require('expo-secure-store') as SecureStoreApi;
-    } catch {
-      // Fall through to AsyncStorage fallback.
-    }
-  }
-
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const asyncStorage = require('@react-native-async-storage/async-storage') as {

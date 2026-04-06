@@ -1,8 +1,10 @@
 import {ProxyFetchFn, ProxyHttpsAgent, ProxyManager, ProxyStatus} from './ProxyManager';
+import {initializeDomainFrontingPinning} from './SslPublicKeyPinning';
 
 export interface DomainFrontingConfig {
   frontingHost: string;
   originHost: string;
+  frontingPublicKeyHashes: string[];
 }
 
 type FetchHeaders = NonNullable<NonNullable<Parameters<typeof fetch>[1]>['headers']>;
@@ -48,6 +50,10 @@ export class DomainFrontingProxyManager implements ProxyManager {
     }
 
     this.status = 'connecting';
+    await initializeDomainFrontingPinning({
+      host: this.config.frontingHost,
+      publicKeyHashes: this.config.frontingPublicKeyHashes,
+    });
     this.status = 'connected';
   }
 
@@ -70,14 +76,23 @@ export class DomainFrontingProxyManager implements ProxyManager {
             : input.url;
 
       let requestUrl = inputUrl;
+      let parsedUrl: URL | null = null;
+
       try {
-        const parsed = new URL(inputUrl);
-        if (parsed.hostname === this.config.originHost) {
-          parsed.hostname = this.config.frontingHost;
-          requestUrl = parsed.toString();
-        }
+        parsedUrl = new URL(inputUrl);
       } catch {
-        requestUrl = inputUrl;
+        parsedUrl = null;
+      }
+
+      if (parsedUrl) {
+        if (parsedUrl.protocol !== 'https:') {
+          throw new Error('Domain-fronted transport requires HTTPS.');
+        }
+
+        if (parsedUrl.hostname === this.config.originHost) {
+          parsedUrl.hostname = this.config.frontingHost;
+          requestUrl = parsedUrl.toString();
+        }
       }
 
       // The Host header is part of the iOS MVP domain-fronting strategy in the spec.

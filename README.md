@@ -83,8 +83,11 @@ To learn more about React Native, take a look at the following resources:
 This repo now includes local Supabase artifacts under `supabase/` for the app-side endpoints already used by the client:
 
 - `supabase/migrations/20260405130000_create_sauti_auth_and_subscriptions.sql`
+- `supabase/migrations/20260406113000_create_otp_verification_requests.sql`
 - `supabase/functions/register-matrix-user/`
+- `supabase/functions/request-otp/`
 - `supabase/functions/subscription-status/`
+- `supabase/functions/verify-otp/`
 
 ## Provider Sync Path
 
@@ -96,7 +99,39 @@ The intended subscription sync path is:
 4. The `subscription-status` edge function reads `public.user_subscriptions` by `matrix_user_id`.
 5. The React Native client caches that response in SecureStore with TTL.
 
-`register-matrix-user` is structured the same way: OTP verification + Matrix provisioning + persistence are separate dependencies so the production provider and Matrix admin integration can be wired without changing the app contract.
+`request-otp`, `verify-otp`, and `register-matrix-user` are structured the same way: provider calls, persistence, and Matrix provisioning are separate dependencies so the production OTP vendor and Matrix admin integration can be wired without changing the app contract.
+
+## Edge Function Runtime Env
+
+The Deno edge functions now expect:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+For `register-matrix-user`, production provisioning also expects:
+
+- `MATRIX_PROVISIONING_API_URL`
+- `MATRIX_PROVISIONING_API_TOKEN` (optional, but recommended)
+
+For local OTP smoke testing before a real provider is wired, you can also set:
+
+- `SAUTI_TEST_OTP_CODE`
+
+When `SAUTI_TEST_OTP_CODE` is present, `request-otp` and `verify-otp` run in test mode and accept that exact code.
+
+`MATRIX_PROVISIONING_API_URL` should point to a trusted backend endpoint that creates the Matrix account and returns JSON shaped like:
+
+```json
+{
+   "userId": "@kwame:sauti.app",
+   "accessToken": "access-token",
+   "deviceId": "DEVICE1",
+   "refreshToken": "refresh-token",
+   "expiresInMs": 86400000
+}
+```
+
+That endpoint can wrap the real Conduit admin mechanism without changing the app or Supabase handler contract.
 
 # Android VPN Validation
 

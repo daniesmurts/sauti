@@ -1,8 +1,8 @@
 # Sauti Master Checklist
 
 Source of truth: masterSpec.md
-Last updated: 2026-04-05
-Status basis: current implementation in SautiApp plus passing test suite (70 suites, 254 tests)
+Last updated: 2026-04-06
+Status basis: current implementation in SautiApp plus passing test suite (73 suites, 277 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -107,13 +107,16 @@ Acceptance criteria:
 Validation note: diagnostics surface (`getDiagnostics`) and device test procedure are now in-repo; actual device execution is still pending.
 
 ### 11) Conduit + Nginx + V2Ray server setup
-Tag: BLOCKED
-Why blocked:
-- Requires infrastructure repository or deployment environment and secrets not present in current repo.
+Tag: PARTIAL
+Why partially blocked:
+- VPS is provisioned and core services are live. Remaining close-out is app-level smoke validation through the proxy path.
 Acceptance criteria:
-- [ ] Backend config templates committed (conduit.toml, turnserver.conf, nginx).
-- [ ] Setup/deploy scripts committed and reviewed.
-- [ ] Smoke test documented: register, login, send message through proxy.
+- [x] Backend config templates committed (conduit.toml, turnserver.conf, nginx, v2ray).
+- [x] Setup/deploy scripts committed and reviewed.
+- [x] setup-server.sh executed on a live Ubuntu 22.04 VPS with real domain.
+- [x] Matrix admin token obtained and set as Supabase secret (MATRIX_PROVISIONING_API_TOKEN).
+- [x] Smoke subchecks passed: `/_matrix/client/versions` healthy, Matrix login/createRoom/send validated via API.
+- [ ] Smoke test passed: curl /_matrix/client/versions, register user, send message through proxy.
 
 ### 12) Supabase subscriptions schema + registration edge function
 Tag: DONE

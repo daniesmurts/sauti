@@ -1,4 +1,144 @@
-import {createStore, StoreApi} from 'zustand/vanilla';
+import {create} from 'zustand';
+
+import {AfriLinkError} from '../../../core/errors';
+import {
+  type AuthSession,
+  authService,
+} from '../../../core/auth/AuthService';
+
+export interface AuthState {
+  status: 'idle' | 'loading' | 'otp_sent' | 'authenticated' | 'error';
+  pendingEmail: string | null;
+  hasTotpEnabled: boolean;
+  totpFactorId: string | null;
+  error: AfriLinkError | null;
+  session: AuthSession | null;
+
+  sendOtp: (email: string, isNewUser: boolean) => Promise<void>;
+  verifyOtp: (code: string) => Promise<void>;
+  verifyTotp: (code: string) => Promise<void>;
+  useRecoveryCode: (code: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  clearError: () => void;
+}
+
+function toAuthError(error: unknown): AfriLinkError {
+  if (error instanceof AfriLinkError) {
+    return error;
+  }
+
+  return new AfriLinkError('NETWORK_ERROR', 'Authentication failed.', error);
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  status: 'idle',
+  pendingEmail: null,
+  hasTotpEnabled: false,
+  totpFactorId: null,
+  error: null,
+  session: null,
+
+  async sendOtp(email, isNewUser) {
+    set({status: 'loading', error: null});
+
+    try {
+      if (isNewUser) {
+        await authService.signUpWithEmail(email);
+      } else {
+        await authService.signInWithEmail(email);
+      }
+
+      set({
+        status: 'otp_sent',
+        pendingEmail: email.trim().toLowerCase(),
+        error: null,
+      });
+    } catch (error) {
+      set({
+        status: 'error',
+        error: toAuthError(error),
+      });
+    }
+  },
+
+  async verifyOtp(code) {
+    const pendingEmail = get().pendingEmail;
+    if (!pendingEmail) {
+      set({
+        status: 'error',
+        error: new AfriLinkError('SESSION_EXPIRED', 'Pending email was not found.'),
+      });
+      return;
+    }
+
+    set({status: 'loading', error: null});
+
+    try {
+      const session = await authService.verifyEmailOtp(pendingEmail, code);
+      const totpStatus = await authService.getTotpStatus();
+
+      set({
+        status: totpStatus.enabled ? 'otp_sent' : 'authenticated',
+        session,
+        hasTotpEnabled: totpStatus.enabled,
+        totpFactorId: totpStatus.factorId,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        status: 'error',
+        error: toAuthError(error),
+      });
+    }
+  },
+
+  async verifyTotp(code) {
+    set({status: 'loading', error: null});
+
+    try {
+      await authService.verifyTotpLogin(code);
+      set({status: 'authenticated', error: null});
+    } catch (error) {
+      set({status: 'error', error: toAuthError(error)});
+    }
+  },
+
+  async useRecoveryCode(code) {
+    set({status: 'loading', error: null});
+
+    try {
+      await authService.useRecoveryCode(code);
+      set({status: 'authenticated', error: null});
+    } catch (error) {
+      set({status: 'error', error: toAuthError(error)});
+    }
+  },
+
+  async signOut() {
+    set({status: 'loading', error: null});
+
+    try {
+      await authService.signOut();
+      set({
+        status: 'idle',
+        pendingEmail: null,
+        hasTotpEnabled: false,
+        totpFactorId: null,
+        session: null,
+        error: null,
+      });
+    } catch (error) {
+      set({status: 'error', error: toAuthError(error)});
+    }
+  },
+
+  clearError() {
+    set({
+      error: null,
+      status: get().session ? 'authenticated' : 'idle',
+    });
+  },
+}));import {createStore, StoreApi} from 'zustand/vanilla';
 
 import {EnsureCoreRuntimeOptions} from '../../../app';
 import {SautiError} from '../../../core/matrix';

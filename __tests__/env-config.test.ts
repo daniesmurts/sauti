@@ -41,10 +41,16 @@ describe('readProxyEnv', () => {
       readProxyEnv({
         CF_FRONTING_HOST: 'cdn.cloudflare.com',
         CF_ORIGIN_HOST: 'matrix.example.org',
+        CF_FRONTING_PUBLIC_KEY_HASHES:
+          'CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=,hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=',
       }),
     ).toEqual({
       frontingHost: 'cdn.cloudflare.com',
       originHost: 'matrix.example.org',
+      frontingPublicKeyHashes: [
+        'CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=',
+        'hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=',
+      ],
     });
   });
 
@@ -52,6 +58,17 @@ describe('readProxyEnv', () => {
     expect(() =>
       readProxyEnv({
         CF_FRONTING_HOST: 'cdn.cloudflare.com',
+      }),
+    ).toThrow(expect.objectContaining({code: 'MATRIX_CONFIG_INVALID'}));
+  });
+
+  it('throws typed error when pin list has fewer than two values', () => {
+    expect(() =>
+      readProxyEnv({
+        CF_FRONTING_HOST: 'cdn.cloudflare.com',
+        CF_ORIGIN_HOST: 'matrix.example.org',
+        CF_FRONTING_PUBLIC_KEY_HASHES:
+          'CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=',
       }),
     ).toThrow(expect.objectContaining({code: 'MATRIX_CONFIG_INVALID'}));
   });

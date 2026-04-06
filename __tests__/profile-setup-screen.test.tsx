@@ -145,6 +145,73 @@ describe('ProfileSetupScreen', () => {
     }
   });
 
+  it('stores the selected avatar uri and includes it in submit payload', async () => {
+    const received: ProfileSetupPayload[] = [];
+    const pickAvatar = jest.fn(async () => 'file:///tmp/avatar.png');
+    const tree = renderer.create(
+      <ProfileSetupScreen
+        pickAvatar={pickAvatar}
+        onSubmit={payload => received.push(payload)}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        findButtonByLabel(tree, 'pick-avatar').props.onPress();
+        await Promise.resolve();
+      });
+
+      const preview = tree.root.findByProps({accessibilityLabel: 'avatar-preview'});
+      expect(preview.props.source.uri).toBe('file:///tmp/avatar.png');
+
+      const input = tree.root.findByType(TextInput);
+      await act(async () => {
+        input.props.onChangeText('Kwame Asante');
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        findButtonByLabel(tree, 'profile-setup-continue').props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(pickAvatar).toHaveBeenCalledTimes(1);
+      expect(received).toHaveLength(1);
+      expect(received[0].avatarUri).toBe('file:///tmp/avatar.png');
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('shows picker errors and leaves placeholder visible', async () => {
+    const pickAvatar = jest.fn(async () => {
+      throw new Error('Camera roll unavailable');
+    });
+    const tree = renderer.create(
+      <ProfileSetupScreen pickAvatar={pickAvatar} onSubmit={() => undefined} />,
+    );
+
+    try {
+      await act(async () => {
+        findButtonByLabel(tree, 'pick-avatar').props.onPress();
+        await Promise.resolve();
+      });
+
+      const errorText = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          typeof node.props.children === 'string' &&
+          node.props.children.includes('Camera roll unavailable'),
+      );
+      expect(errorText.length).toBeGreaterThan(0);
+
+      const placeholder = tree.root.findAllByProps({testID: 'avatar-placeholder'});
+      expect(placeholder.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('clears name error when user edits input after an error', async () => {
     const tree = renderer.create(
       <ProfileSetupScreen onSubmit={() => undefined} />,
@@ -198,6 +265,39 @@ describe('ProfileSetupScreen', () => {
     try {
       const input = tree.root.findByType(TextInput);
       expect(input.props.editable).toBe(false);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('disables input while avatar picker is pending', async () => {
+    let resolvePicker: ((value: string | undefined) => void) | undefined;
+    const pickAvatar = jest.fn(
+      () =>
+        new Promise<string | undefined>(resolve => {
+          resolvePicker = resolve;
+        }),
+    );
+    const tree = renderer.create(
+      <ProfileSetupScreen pickAvatar={pickAvatar} onSubmit={() => undefined} />,
+    );
+
+    try {
+      await act(async () => {
+        findButtonByLabel(tree, 'pick-avatar').props.onPress();
+        await Promise.resolve();
+      });
+
+      const inputWhilePending = tree.root.findByType(TextInput);
+      expect(inputWhilePending.props.editable).toBe(false);
+
+      await act(async () => {
+        resolvePicker?.('file:///tmp/avatar.png');
+        await Promise.resolve();
+      });
+
+      const inputAfterResolve = tree.root.findByType(TextInput);
+      expect(inputAfterResolve.props.editable).toBe(true);
     } finally {
       tree.unmount();
     }

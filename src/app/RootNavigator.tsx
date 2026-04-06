@@ -4,11 +4,14 @@ import {NavigationContainer, createNavigationContainerRef} from '@react-navigati
 import {StyleSheet, Text, View} from 'react-native';
 
 import {MainFlowScreen} from '../modules/main';
+import {SettingsSecurityScreen} from '../modules/settings';
 import {Colors, Spacing, TextPresets} from '../ui/tokens';
+import {useScreenCaptureProtection} from '../core/security/screenCaptureProtection';
 import {
   getInitialPushNotificationRoomId,
   subscribeNotificationOpen,
 } from '../core/notifications';
+import {useAuthRedirect} from '../modules/auth/hooks/useAuthRedirect';
 
 type RootTabParamList = {
   Chats: undefined;
@@ -40,6 +43,8 @@ function PlaceholderTabScreen({
 }
 
 function CallsTabScreen(): React.JSX.Element {
+  useScreenCaptureProtection(true);
+
   return (
     <PlaceholderTabScreen
       title="Calls"
@@ -60,17 +65,23 @@ function ContactsTabScreen(): React.JSX.Element {
 }
 
 function SettingsTabScreen(): React.JSX.Element {
-  return (
-    <PlaceholderTabScreen
-      title="Settings"
-      detail="Security, proxy, and subscription settings will be expanded incrementally."
-      testID="tab-settings-screen"
-    />
-  );
+  return <SettingsSecurityScreen />;
 }
 
 export function RootNavigator(): React.JSX.Element {
   const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
+
+  useAuthRedirect({
+    onMain: () => {
+      // Already in the authenticated tree.
+    },
+    onEmailEntry: () => {
+      // App shell handles switching back to auth gateway.
+    },
+    onTotpVerification: () => {
+      // App shell handles switching back to auth gateway.
+    },
+  });
 
   React.useEffect(() => {
     // Handle notification tap when app was fully quit.

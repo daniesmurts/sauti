@@ -11,6 +11,7 @@ import {
   AuthGatewayPlaceholder,
   initializeApp,
   MainGatewayPlaceholder,
+  subscribeAppStartup,
 } from './src/app';
 import {
   initializePushNotifications,
@@ -105,6 +106,60 @@ function App(): React.JSX.Element {
   }, []);
 
   React.useEffect(() => {
+    return subscribeAppStartup(snapshot => {
+      setState(current => {
+        if (snapshot.status === 'ready') {
+          if (current.status === 'main') {
+            return current;
+          }
+
+          return {
+            status: 'main',
+            detail: 'Core runtime ready.',
+          };
+        }
+
+        if (snapshot.status === 'signed_out') {
+          const detail = formatSignedOutReason(snapshot.reason);
+          if (current.status === 'auth' && current.detail === detail) {
+            return current;
+          }
+
+          return {
+            status: 'auth',
+            detail,
+          };
+        }
+
+        if (snapshot.status === 'error') {
+          const detail = snapshot.errorMessage ?? 'Startup failed.';
+          if (current.status === 'error' && current.detail === detail) {
+            return current;
+          }
+
+          return {
+            status: 'error',
+            detail,
+          };
+        }
+
+        if (snapshot.status === 'initializing') {
+          if (current.status === 'initializing') {
+            return current;
+          }
+
+          return {
+            status: 'initializing',
+            detail: 'Starting core services...',
+          };
+        }
+
+        return current;
+      });
+    });
+  }, []);
+
+  React.useEffect(() => {
     let active = true;
 
     void initializePushNotifications().then(result => {
@@ -161,23 +216,49 @@ function App(): React.JSX.Element {
       });
   }, []);
 
+  const handleDismissNotificationPrompt = React.useCallback(() => {
+    setPushPermissionPromptVisible(false);
+  }, []);
+
   const renderNotificationOverlays = (): React.JSX.Element => (
     <>
       {pushPermissionPromptVisible ? (
         <View style={styles.pushPromptCard}>
-          <Text style={styles.pushPromptTitle}>Notifications Off</Text>
+          <View style={styles.pushPromptHeaderRow}>
+            <Text style={styles.pushPromptTitle}>Notifications Off</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="dismiss-notifications-prompt"
+              style={styles.pushPromptCloseButton}
+              activeOpacity={0.85}
+              onPress={handleDismissNotificationPrompt}
+              disabled={isRequestingPushPermission}>
+              <Text style={styles.pushPromptCloseButtonText}>x</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.pushPromptMessage}>{pushPromptMessage}</Text>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="enable-notifications"
-            style={styles.pushPromptButton}
-            activeOpacity={0.88}
-            onPress={handleRequestNotificationPermission}
-            disabled={isRequestingPushPermission}>
-            <Text style={styles.pushPromptButtonText}>
-              {isRequestingPushPermission ? 'Requesting...' : 'Enable Notifications'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.pushPromptActionsRow}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="dismiss-notifications-prompt-secondary"
+              style={styles.pushPromptSecondaryButton}
+              activeOpacity={0.88}
+              onPress={handleDismissNotificationPrompt}
+              disabled={isRequestingPushPermission}>
+              <Text style={styles.pushPromptSecondaryButtonText}>Not now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="enable-notifications"
+              style={styles.pushPromptButton}
+              activeOpacity={0.88}
+              onPress={handleRequestNotificationPermission}
+              disabled={isRequestingPushPermission}>
+              <Text style={styles.pushPromptButtonText}>
+                {isRequestingPushPermission ? 'Requesting...' : 'Enable Notifications'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : null}
 
@@ -201,7 +282,14 @@ function App(): React.JSX.Element {
   if (state.status === 'auth') {
     return (
       <View style={styles.gatewayContainer}>
-        <AuthGatewayPlaceholder />
+        <AuthGatewayPlaceholder
+          onAuthenticated={() => {
+            setState({
+              status: 'main',
+              detail: 'Authenticated session active.',
+            });
+          }}
+        />
         {renderNotificationOverlays()}
       </View>
     );
@@ -281,13 +369,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
   },
+  pushPromptHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  pushPromptCloseButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e2e8f0',
+  },
+  pushPromptCloseButtonText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
   pushPromptMessage: {
     fontSize: 14,
     lineHeight: 20,
     color: '#334155',
   },
-  pushPromptButton: {
+  pushPromptActionsRow: {
     marginTop: 4,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pushPromptSecondaryButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    backgroundColor: '#f8fafc',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pushPromptSecondaryButtonText: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pushPromptButton: {
+    flex: 1,
     borderRadius: 10,
     backgroundColor: '#23718d',
     paddingVertical: 10,

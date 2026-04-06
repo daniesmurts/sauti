@@ -7,6 +7,7 @@ import {Colors, Spacing, TextPresets} from '../../../ui/tokens';
 export interface PhoneEntryScreenProps {
   initialPhoneNumber?: string;
   disabled?: boolean;
+  errorMessage?: string;
   onContinue(phoneNumber: string): void;
 }
 
@@ -21,6 +22,7 @@ function isValidPhoneNumber(value: string): boolean {
 export function PhoneEntryScreen({
   initialPhoneNumber = '',
   disabled = false,
+  errorMessage,
   onContinue,
 }: PhoneEntryScreenProps): React.JSX.Element {
   const [phoneNumber, setPhoneNumber] = React.useState(initialPhoneNumber);
@@ -64,6 +66,8 @@ export function PhoneEntryScreen({
           editable={!disabled}
         />
 
+        {errorMessage ? <Text style={styles.remoteError}>{errorMessage}</Text> : null}
+
         <View style={styles.cta}>
           <Button
             label="Continue"
@@ -88,6 +92,10 @@ const styles = StyleSheet.create({
   description: {
     color: Colors.neutral[600],
     marginBottom: Spacing.sm,
+  },
+  remoteError: {
+    ...TextPresets.caption,
+    color: Colors.semantic.error,
   },
   cta: {
     marginTop: Spacing.sm,

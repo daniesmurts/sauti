@@ -9,6 +9,8 @@ describe('createDefaultProxyManager', () => {
     const manager = createDefaultProxyManager({
       CF_FRONTING_HOST: 'cdn.cloudflare.com',
       CF_ORIGIN_HOST: 'matrix.example.org',
+      CF_FRONTING_PUBLIC_KEY_HASHES:
+        'CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=,hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=',
     });
 
     expect(manager).toBeInstanceOf(ResilientProxyManager);

@@ -4,3 +4,4 @@ export * from './createProxyManager';
 export * from './PlatformProxyManagers';
 export * from './ResilientProxyManager';
 export * from './NativeProxyModule';
+export * from './SslPublicKeyPinning';

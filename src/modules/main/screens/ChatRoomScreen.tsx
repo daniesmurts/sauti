@@ -1,6 +1,7 @@
 import React from 'react';
 import {FlatList, StyleSheet, Text, TextInput, View} from 'react-native';
 
+import {useScreenCaptureProtection} from '../../../core/security/screenCaptureProtection';
 import {Avatar, Button, MessageBubble, Screen} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
 
@@ -35,6 +36,8 @@ export function ChatRoomScreen({
   onDraftChange,
   onSend,
 }: ChatRoomScreenProps): React.JSX.Element {
+  useScreenCaptureProtection(true);
+
   return (
     <Screen>
       <View style={styles.header}>

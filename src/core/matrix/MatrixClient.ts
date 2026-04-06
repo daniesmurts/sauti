@@ -121,6 +121,14 @@ export interface MatrixReconnectOptions {
   backoffMultiplier?: number;
 }
 
+export interface MatrixDeviceSession {
+  deviceId: string;
+  displayName?: string;
+  lastSeenIp?: string;
+  lastSeenTs?: number;
+  isCurrent: boolean;
+}
+
 type MatrixEventHandler = (event: MatrixClientEvent) => void;
 
 interface MatrixSdkAuthLoginResponse {
@@ -152,6 +160,16 @@ interface MatrixAuthClientShape {
     eventType: string,
     content: Record<string, unknown>,
   ) => Promise<string | {event_id?: string; eventId?: string}>;
+  getDeviceId?: () => string | null;
+  getDevices?: () => Promise<{
+    devices?: Array<{
+      device_id?: unknown;
+      display_name?: unknown;
+      last_seen_ip?: unknown;
+      last_seen_ts?: unknown;
+    }>;
+  }>;
+  deleteDevice?: (deviceId: string, auth?: Record<string, unknown>) => Promise<unknown>;
   getRooms?: () => Array<{
     roomId?: unknown;
     getRoomId?: () => string | null;
@@ -662,6 +680,70 @@ class MatrixClientWrapper {
       throw new SautiError(
         'MATRIX_ROOM_OPERATION_FAILED',
         'Matrix room snapshot listing failed.',
+        error,
+      );
+    }
+  }
+
+  async listDeviceSessions(): Promise<MatrixDeviceSession[]> {
+    try {
+      const client = this.getAuthClient();
+      if (!client.getDevices) {
+        throw new Error('Matrix SDK client missing getDevices capability.');
+      }
+
+      const response = await client.getDevices();
+      const devices = Array.isArray(response.devices) ? response.devices : [];
+      const currentDeviceId =
+        typeof client.getDeviceId === 'function' ? client.getDeviceId() : null;
+
+      return devices
+        .map(device => {
+          const deviceId =
+            typeof device.device_id === 'string' ? device.device_id : undefined;
+          if (!deviceId) {
+            return null;
+          }
+
+          return {
+            deviceId,
+            displayName:
+              typeof device.display_name === 'string' &&
+              device.display_name.trim().length > 0
+                ? device.display_name
+                : undefined,
+            lastSeenIp:
+              typeof device.last_seen_ip === 'string' &&
+              device.last_seen_ip.trim().length > 0
+                ? device.last_seen_ip
+                : undefined,
+            lastSeenTs:
+              typeof device.last_seen_ts === 'number' ? device.last_seen_ts : undefined,
+            isCurrent: currentDeviceId === deviceId,
+          };
+        })
+        .filter((value): value is MatrixDeviceSession => value !== null);
+    } catch (error) {
+      throw new SautiError(
+        'MATRIX_DEVICE_VERIFICATION_FAILED',
+        'Matrix device session listing failed.',
+        error,
+      );
+    }
+  }
+
+  async revokeDeviceSession(deviceId: string): Promise<void> {
+    try {
+      const client = this.getAuthClient();
+      if (!client.deleteDevice) {
+        throw new Error('Matrix SDK client missing deleteDevice capability.');
+      }
+
+      await client.deleteDevice(deviceId);
+    } catch (error) {
+      throw new SautiError(
+        'MATRIX_DEVICE_VERIFICATION_FAILED',
+        'Matrix device session revoke failed.',
         error,
       );
     }

@@ -40,6 +40,14 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Supabase local CLI state
+supabase/.temp/
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the

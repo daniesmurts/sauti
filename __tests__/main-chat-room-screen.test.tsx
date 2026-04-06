@@ -4,7 +4,7 @@ import {TextInput, TouchableOpacity} from 'react-native';
 import renderer, {act} from 'react-test-renderer';
 import {describe, expect, it, jest} from '@jest/globals';
 
-import {ChatRoomScreen} from '../src/modules/main/screens';
+import {ChatRoomScreen} from '../src/modules/main/screens/ChatRoomScreen';
 
 describe('ChatRoomScreen', () => {
   it('renders room and messages', () => {
