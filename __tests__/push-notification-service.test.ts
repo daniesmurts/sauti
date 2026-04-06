@@ -2,6 +2,7 @@ import {
   PushNotificationService,
   type PushMessagePayload,
   type PushMessagingAdapter,
+  type PushPermissionStatus,
 } from '../src/core/notifications';
 
 function makeAdapter(
@@ -10,6 +11,7 @@ function makeAdapter(
   return {
     requestPermission: async () => 1,
     getToken: async () => 'token-123',
+    onTokenRefresh: () => () => undefined,
     onMessage: () => () => undefined,
     setBackgroundMessageHandler: () => undefined,
     getInitialNotification: async () => null,
@@ -20,21 +22,62 @@ function makeAdapter(
 
 describe('PushNotificationService', () => {
   it('returns token when permission is granted', async () => {
-    const service = new PushNotificationService(makeAdapter());
+    const service = new PushNotificationService(
+      makeAdapter(),
+      {
+        requestPermission: async () => 'granted',
+      },
+      async () => undefined,
+    );
     await expect(service.initialize()).resolves.toEqual({
       token: 'token-123',
       permissionGranted: true,
+      permissionStatus: 'granted',
+      tokenRegistered: true,
     });
   });
 
   it('returns null token when permission is denied', async () => {
     const service = new PushNotificationService(
       makeAdapter({requestPermission: async () => 0}),
+      {
+        requestPermission: async () => 'denied',
+      },
+      async () => undefined,
     );
     await expect(service.initialize()).resolves.toEqual({
       token: null,
       permissionGranted: false,
+      permissionStatus: 'denied',
+      tokenRegistered: false,
     });
+  });
+
+  it('registers token again when FCM token refreshes', async () => {
+    let refreshListener: ((token: string) => void) | null = null;
+    const registered: string[] = [];
+
+    const service = new PushNotificationService(
+      makeAdapter({
+        onTokenRefresh: listener => {
+          refreshListener = listener;
+          return () => undefined;
+        },
+      }),
+      {
+        requestPermission: async () => 'granted',
+      },
+      async token => {
+        registered.push(token);
+      },
+    );
+
+    await service.initialize();
+    if (typeof refreshListener === 'function') {
+      refreshListener('token-456');
+    }
+
+    expect(registered).toEqual(['token-123', 'token-456']);
   });
 
   it('subscribes and unsubscribes foreground messages', () => {
@@ -69,6 +112,8 @@ describe('PushNotificationService', () => {
     await expect(service.initialize()).resolves.toEqual({
       token: null,
       permissionGranted: false,
+      permissionStatus: 'unavailable',
+      tokenRegistered: false,
     });
 
     const dispose = service.subscribeForegroundMessages(() => undefined);
@@ -153,7 +198,9 @@ describe('PushNotificationService', () => {
 
       service.subscribeNotificationOpen(roomId => delivered.push(roomId));
 
-      capturedListener?.({'room_id': '!room1:example.com'});
+      if (typeof capturedListener === 'function') {
+        capturedListener({'room_id': '!room1:example.com'});
+      }
       expect(delivered).toEqual(['!room1:example.com']);
     });
 
@@ -172,7 +219,9 @@ describe('PushNotificationService', () => {
 
       service.subscribeNotificationOpen(roomId => delivered.push(roomId));
 
-      capturedListener?.({type: 'other'});
+      if (typeof capturedListener === 'function') {
+        capturedListener({type: 'other'});
+      }
       expect(delivered).toHaveLength(0);
     });
 
@@ -191,7 +240,9 @@ describe('PushNotificationService', () => {
 
       service.subscribeNotificationOpen(roomId => delivered.push(roomId));
 
-      capturedListener?.({data: {'room_id': '!nested:matrix.org'}});
+      if (typeof capturedListener === 'function') {
+        capturedListener({data: {'room_id': '!nested:matrix.org'}});
+      }
       expect(delivered).toEqual(['!nested:matrix.org']);
     });
 
@@ -215,8 +266,36 @@ describe('PushNotificationService', () => {
       unsub();
       expect(platformUnsub).toHaveBeenCalledTimes(1);
 
-      capturedListener?.({'room_id': '!room2:example.com'});
+      if (typeof capturedListener === 'function') {
+        capturedListener({'room_id': '!room2:example.com'});
+      }
       expect(delivered).toHaveLength(0);
     });
+  });
+
+  it('registers background handler and captures room_id payload', async () => {
+    let backgroundHandler: ((payload: PushMessagePayload) => Promise<void>) | null = null;
+
+    const service = new PushNotificationService(
+      makeAdapter({
+        setBackgroundMessageHandler: listener => {
+          backgroundHandler = listener;
+        },
+        getInitialNotification: async () => null,
+      }),
+      {
+        requestPermission: async () => 'granted',
+      },
+      async () => undefined,
+    );
+
+    service.registerBackgroundHandler(async payload => {
+      if (!payload) {
+        throw new Error('invalid');
+      }
+      return;
+    });
+
+    expect(backgroundHandler).not.toBeNull();
   });
 });

@@ -19,6 +19,22 @@ jest.mock('../src/app', () => ({
   AuthGatewayPlaceholder: () => null,
 }));
 
+jest.mock('../src/core/notifications', () => ({
+  initializePushNotifications: jest.fn().mockResolvedValue({
+    token: null,
+    permissionGranted: true,
+    permissionStatus: 'granted',
+    tokenRegistered: false,
+  }),
+  requestPushNotificationsPermission: jest.fn().mockResolvedValue({
+    token: null,
+    permissionGranted: true,
+    permissionStatus: 'granted',
+    tokenRegistered: false,
+  }),
+  subscribeForegroundPushMessages: jest.fn(() => () => undefined),
+}));
+
 describe('App', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,7 +53,8 @@ describe('App', () => {
     });
 
     expect(initializeApp).toHaveBeenCalledTimes(1);
-    expect(tree!.toJSON()).toBeNull(); // MainGatewayPlaceholder renders null in mock
+    const json = tree!.toJSON() as renderer.ReactTestRendererJSON;
+    expect(json.type).toBe('View');
   });
 
   it('renders AuthGatewayPlaceholder when startup is signed_out', async () => {
@@ -53,7 +70,8 @@ describe('App', () => {
     });
 
     expect(initializeApp).toHaveBeenCalledTimes(1);
-    expect(tree!.toJSON()).toBeNull(); // AuthGatewayPlaceholder renders null in mock
+    const json = tree!.toJSON() as renderer.ReactTestRendererJSON;
+    expect(json.type).toBe('View');
   });
 
   it('renders error card when startup fails', async () => {

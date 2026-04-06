@@ -1,8 +1,11 @@
 export type PushMessagePayload = Record<string, unknown>;
 
+export type PushPermissionStatus = 'granted' | 'denied' | 'unavailable';
+
 export interface PushMessagingAdapter {
   requestPermission(): Promise<number>;
   getToken(): Promise<string>;
+  onTokenRefresh(listener: (token: string) => void): () => void;
   onMessage(listener: (payload: PushMessagePayload) => void): () => void;
   setBackgroundMessageHandler(
     listener: (payload: PushMessagePayload) => Promise<void>,
@@ -29,6 +32,93 @@ function extractRoomId(payload: PushMessagePayload): string | null {
   return null;
 }
 
+interface RuntimePermissionAdapter {
+  requestPermission(adapter: PushMessagingAdapter | null): Promise<PushPermissionStatus>;
+}
+
+function createRuntimePermissionAdapter(): RuntimePermissionAdapter {
+  return {
+    async requestPermission(adapter): Promise<PushPermissionStatus> {
+      if (!adapter) {
+        return 'unavailable';
+      }
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const reactNative = require('react-native') as {
+          Platform: {OS: string; Version: number | string};
+          PermissionsAndroid: {
+            PERMISSIONS: {POST_NOTIFICATIONS: string};
+            RESULTS: {GRANTED: string};
+            request(permission: string): Promise<string>;
+          };
+        };
+
+        if (reactNative.Platform.OS === 'android') {
+          const versionRaw = reactNative.Platform.Version;
+          const version = typeof versionRaw === 'number' ? versionRaw : Number(versionRaw);
+          if (Number.isFinite(version) && version >= 33) {
+            const requested = await reactNative.PermissionsAndroid.request(
+              reactNative.PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            );
+            return requested === reactNative.PermissionsAndroid.RESULTS.GRANTED
+              ? 'granted'
+              : 'denied';
+          }
+
+          return 'granted';
+        }
+      } catch {
+        // Fall through to messaging permission request.
+      }
+
+      try {
+        const permissionStatus = await adapter.requestPermission();
+        return permissionStatus > 0 ? 'granted' : 'denied';
+      } catch {
+        return 'denied';
+      }
+    },
+  };
+}
+
+export type PushDeviceTokenRegistrar = (token: string) => Promise<void> | void;
+
+function createRuntimeTokenRegistrar(): PushDeviceTokenRegistrar {
+  const cacheKey = 'push.device.token.v1';
+  let inMemoryToken: string | null = null;
+
+  return async (token: string) => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const asyncStorage = require('@react-native-async-storage/async-storage') as {
+        default: {
+          getItem(key: string): Promise<string | null>;
+          setItem(key: string, value: string): Promise<void>;
+        };
+      };
+
+      const current = await asyncStorage.default.getItem(cacheKey);
+      if (current === token) {
+        return;
+      }
+
+      await asyncStorage.default.setItem(cacheKey, token);
+      return;
+    } catch {
+      inMemoryToken = token;
+    }
+
+    if (inMemoryToken !== token) {
+      inMemoryToken = token;
+    }
+  };
+}
+
 function createRuntimeAdapter(): PushMessagingAdapter | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -36,6 +126,7 @@ function createRuntimeAdapter(): PushMessagingAdapter | null {
       | (() => {
           requestPermission(): Promise<number>;
           getToken(): Promise<string>;
+          onTokenRefresh(listener: (token: string) => void): () => void;
           onMessage(listener: (payload: PushMessagePayload) => void): () => void;
           setBackgroundMessageHandler(
             listener: (payload: PushMessagePayload) => Promise<void>,
@@ -55,6 +146,7 @@ function createRuntimeAdapter(): PushMessagingAdapter | null {
     return {
       requestPermission: () => messaging.requestPermission(),
       getToken: () => messaging.getToken(),
+      onTokenRefresh: listener => messaging.onTokenRefresh(listener),
       onMessage: listener => messaging.onMessage(listener),
       setBackgroundMessageHandler: listener =>
         messaging.setBackgroundMessageHandler(listener),
@@ -70,28 +162,86 @@ function createRuntimeAdapter(): PushMessagingAdapter | null {
 export interface PushNotificationInitializationResult {
   token: string | null;
   permissionGranted: boolean;
+  permissionStatus: PushPermissionStatus;
+  tokenRegistered: boolean;
 }
 
 export class PushNotificationService {
-  constructor(private readonly adapter: PushMessagingAdapter | null = createRuntimeAdapter()) {}
+  private readonly registeredTokens = new Set<string>();
+  private tokenRefreshUnsubscribe: (() => void) | null = null;
 
-  async initialize(): Promise<PushNotificationInitializationResult> {
-    if (!this.adapter) {
-      return {token: null, permissionGranted: false};
+  constructor(
+    private readonly adapter: PushMessagingAdapter | null = createRuntimeAdapter(),
+    private readonly permissions: RuntimePermissionAdapter = createRuntimePermissionAdapter(),
+    private readonly registerDeviceToken: PushDeviceTokenRegistrar = createRuntimeTokenRegistrar(),
+  ) {}
+
+  private ensureTokenRefreshSubscription(): void {
+    if (!this.adapter || this.tokenRefreshUnsubscribe) {
+      return;
+    }
+
+    this.tokenRefreshUnsubscribe = this.adapter.onTokenRefresh(token => {
+      void this.registerToken(token);
+    });
+  }
+
+  private async registerToken(token: string): Promise<boolean> {
+    if (!token || this.registeredTokens.has(token)) {
+      return false;
     }
 
     try {
-      const permissionStatus = await this.adapter.requestPermission();
-      const permissionGranted = permissionStatus > 0;
-      if (!permissionGranted) {
-        return {token: null, permissionGranted: false};
-      }
-
-      const token = await this.adapter.getToken();
-      return {token, permissionGranted: true};
+      await this.registerDeviceToken(token);
+      this.registeredTokens.add(token);
+      return true;
     } catch {
-      return {token: null, permissionGranted: false};
+      return false;
     }
+  }
+
+  async requestPermissionAndRegister(): Promise<PushNotificationInitializationResult> {
+    if (!this.adapter) {
+      return {
+        token: null,
+        permissionGranted: false,
+        permissionStatus: 'unavailable',
+        tokenRegistered: false,
+      };
+    }
+
+    const permissionStatus = await this.permissions.requestPermission(this.adapter);
+    if (permissionStatus !== 'granted') {
+      return {
+        token: null,
+        permissionGranted: false,
+        permissionStatus,
+        tokenRegistered: false,
+      };
+    }
+
+    try {
+      const token = await this.adapter.getToken();
+      const tokenRegistered = await this.registerToken(token);
+      this.ensureTokenRefreshSubscription();
+      return {
+        token,
+        permissionGranted: true,
+        permissionStatus: 'granted',
+        tokenRegistered,
+      };
+    } catch {
+      return {
+        token: null,
+        permissionGranted: true,
+        permissionStatus: 'granted',
+        tokenRegistered: false,
+      };
+    }
+  }
+
+  async initialize(): Promise<PushNotificationInitializationResult> {
+    return this.requestPermissionAndRegister();
   }
 
   subscribeForegroundMessages(
@@ -155,9 +305,14 @@ export class PushNotificationService {
 }
 
 const runtimePushService = new PushNotificationService();
+let lastBackgroundRoomId: string | null = null;
 
 export async function initializePushNotifications(): Promise<PushNotificationInitializationResult> {
   return runtimePushService.initialize();
+}
+
+export async function requestPushNotificationsPermission(): Promise<PushNotificationInitializationResult> {
+  return runtimePushService.requestPermissionAndRegister();
 }
 
 export function subscribeForegroundPushMessages(
@@ -167,14 +322,18 @@ export function subscribeForegroundPushMessages(
 }
 
 export function registerDefaultBackgroundPushHandler(): void {
-  runtimePushService.registerBackgroundHandler(async () => {
-    // Placeholder handler for Phase-1 wiring. Domain logic will be added with notifications UX.
+  runtimePushService.registerBackgroundHandler(async payload => {
+    const roomId = extractRoomId(payload);
+    if (roomId) {
+      lastBackgroundRoomId = roomId;
+    }
     return;
   });
 }
 
-export function getInitialPushNotificationRoomId(): Promise<string | null> {
-  return runtimePushService.getInitialNotificationRoomId();
+export async function getInitialPushNotificationRoomId(): Promise<string | null> {
+  const roomId = await runtimePushService.getInitialNotificationRoomId();
+  return roomId ?? lastBackgroundRoomId;
 }
 
 export function subscribeNotificationOpen(
