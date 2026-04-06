@@ -101,10 +101,13 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(input).toBeDefined();
 
       await act(async () => {
-        input.props.onChangeText('friend-at-example');
+        input!.props.onChangeText('friend-at-example');
         await Promise.resolve();
       });
 
@@ -154,10 +157,13 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(input).toBeDefined();
 
       await act(async () => {
-        input.props.onChangeText('  @friend:example.org  ');
+        input!.props.onChangeText('  @friend:example.org  ');
         await Promise.resolve();
       });
 
@@ -199,10 +205,13 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(input).toBeDefined();
 
       await act(async () => {
-        input.props.onChangeText('@friend:example.org');
+        input!.props.onChangeText('@friend:example.org');
         await Promise.resolve();
       });
 
@@ -240,10 +249,13 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(input).toBeDefined();
 
       await act(async () => {
-        input.props.onChangeText('friend:example.org');
+        input!.props.onChangeText('friend:example.org');
         await Promise.resolve();
       });
 
@@ -259,8 +271,11 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const updatedInput = tree.root.findByType(TextInput);
-      expect(updatedInput.props.value).toBe('@friend:example.org');
+      const updatedInput = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(updatedInput).toBeDefined();
+      expect(updatedInput!.props.value).toBe('@friend:example.org');
     } finally {
       tree.unmount();
     }
@@ -456,9 +471,12 @@ describe('ConversationListScreen', () => {
         await Promise.resolve();
       });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree.root
+        .findAllByType(TextInput)
+        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+      expect(input).toBeDefined();
       await act(async () => {
-        input.props.onChangeText('Kwame');
+        input!.props.onChangeText('Kwame');
         await Promise.resolve();
       });
 
@@ -538,6 +556,65 @@ describe('ConversationListScreen', () => {
         node => node.type === 'Text' && node.props.children === 'Muted',
       );
       expect(mutedNodes.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('calls onArchiveConversation when archive swipe action is pressed', async () => {
+    const onArchiveConversation = jest.fn();
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        onSelectConversation={() => {}}
+        onArchiveConversation={onArchiveConversation}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const archiveButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'archive-conversation-!room-1:sauti.app',
+      );
+
+      await act(async () => {
+        archiveButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(onArchiveConversation).toHaveBeenCalledTimes(1);
+      expect(onArchiveConversation).toHaveBeenCalledWith('!room-1:sauti.app');
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('calls onOpenNewConversation from FAB when callback is provided', async () => {
+    const onOpenNewConversation = jest.fn();
+    const tree = renderer.create(
+      <ConversationListScreen
+        conversations={conversations}
+        onSelectConversation={() => {}}
+        onOpenNewConversation={onOpenNewConversation}
+        onStartConversation={async () => {}}
+      />,
+    );
+
+    try {
+      const openButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-new-conversation',
+      );
+
+      await act(async () => {
+        openButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(onOpenNewConversation).toHaveBeenCalledTimes(1);
     } finally {
       tree.unmount();
     }

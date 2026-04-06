@@ -222,7 +222,7 @@ describe('MainFlowScreen', () => {
 
       const input = tree.root
         .findAllByType(TextInput)
-        .find(node => node.props.accessibilityLabel === 'Search contacts or Matrix target');
+        .find(node => node.props.accessibilityLabel === 'Or start a new conversation');
       expect(input).toBeDefined();
 
       await act(async () => {
@@ -310,7 +310,7 @@ describe('MainFlowScreen', () => {
         node =>
           node.type === TouchableOpacity &&
           typeof node.props.accessibilityLabel === 'string' &&
-          node.props.accessibilityLabel.startsWith('recent-target-chip-'),
+          node.props.accessibilityLabel.startsWith('recent-target-'),
       );
       expect(chipsAfterFirstTap).toHaveLength(2);
 
@@ -323,7 +323,7 @@ describe('MainFlowScreen', () => {
         node =>
           node.type === TouchableOpacity &&
           typeof node.props.accessibilityLabel === 'string' &&
-          node.props.accessibilityLabel.startsWith('recent-target-chip-'),
+          node.props.accessibilityLabel.startsWith('recent-target-'),
       );
 
       expect(recentChips).toHaveLength(0);
