@@ -1,0 +1,22 @@
+# Conduwuit Matrix Homeserver — Sauti configuration template
+# Deploy path on server: /etc/conduit.toml
+# Replace all REPLACE_WITH_* values, or let setup-server.sh fill them in.
+
+[global]
+server_name = "REPLACE_WITH_YOUR_DOMAIN"
+database_backend = "rocksdb"
+database_path = "/var/lib/conduit/rocksdb"
+port = 6167
+address = "127.0.0.1"
+max_request_size = 20_000_000
+
+# Registration is disabled — accounts are created via Supabase edge function
+# using the admin access token (MATRIX_PROVISIONING_API_TOKEN).
+allow_registration = false
+
+# Private network — no federation with other homeservers.
+allow_federation = false
+
+allow_room_creation = true
+allow_encryption = true
+log = "warn"
