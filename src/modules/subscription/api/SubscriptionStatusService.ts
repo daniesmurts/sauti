@@ -1,5 +1,4 @@
 import {readSupabaseEnv} from '../../../core/config/env';
-import {SautiError} from '../../../core/matrix/MatrixClient';
 
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -9,15 +8,75 @@ interface SecureStoreApi {
   deleteItemAsync(key: string): Promise<void>;
 }
 
+type LocalSautiError = Error & {
+  code: string;
+  cause?: unknown;
+};
+
+function createSautiError(code: string, message: string, cause?: unknown): LocalSautiError {
+  const error = new Error(message) as LocalSautiError;
+  error.name = 'SautiError';
+  error.code = code;
+  if (typeof cause !== 'undefined') {
+    error.cause = cause;
+  }
+  return error;
+}
+
+function isSautiError(error: unknown): error is LocalSautiError {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {name?: unknown; code?: unknown};
+  return candidate.name === 'SautiError' && typeof candidate.code === 'string';
+}
+
+function createInMemorySecureStore(): SecureStoreApi {
+  const data = new Map<string, string>();
+
+  return {
+    async getItemAsync(key: string): Promise<string | null> {
+      return data.get(key) ?? null;
+    },
+    async setItemAsync(key: string, value: string): Promise<void> {
+      data.set(key, value);
+    },
+    async deleteItemAsync(key: string): Promise<void> {
+      data.delete(key);
+    },
+  };
+}
+
 function getDefaultSecureStore(): SecureStoreApi {
+  const runtime = globalThis as {expo?: {EventEmitter?: unknown}};
+
+  if (runtime.expo?.EventEmitter) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require('expo-secure-store') as SecureStoreApi;
+    } catch {
+      // Fall through to AsyncStorage fallback.
+    }
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('expo-secure-store') as SecureStoreApi;
+    const asyncStorage = require('@react-native-async-storage/async-storage') as {
+      default: {
+        getItem(key: string): Promise<string | null>;
+        setItem(key: string, value: string): Promise<void>;
+        removeItem(key: string): Promise<void>;
+      };
+    };
+
+    return {
+      getItemAsync: key => asyncStorage.default.getItem(key),
+      setItemAsync: (key, value) => asyncStorage.default.setItem(key, value),
+      deleteItemAsync: key => asyncStorage.default.removeItem(key),
+    };
   } catch {
-    throw new SautiError(
-      'SUBSCRIPTION_CACHE_FAILED',
-      'SecureStore is unavailable for subscription cache.',
-    );
+    return createInMemorySecureStore();
   }
 }
 
@@ -99,7 +158,7 @@ export class SubscriptionStatusService {
     try {
       await this.secureStore.deleteItemAsync(this.cacheKey(matrixUserId));
     } catch (error) {
-      throw new SautiError(
+      throw createSautiError(
         'SUBSCRIPTION_CACHE_FAILED',
         'Failed to clear cached subscription status.',
         error,
@@ -135,11 +194,11 @@ export class SubscriptionStatusService {
 
       return payloadUnknown;
     } catch (error) {
-      if (error instanceof SautiError) {
+      if (isSautiError(error)) {
         throw error;
       }
 
-      throw new SautiError(
+      throw createSautiError(
         'SUBSCRIPTION_FETCH_FAILED',
         'Failed to fetch subscription status from Supabase.',
         error,
@@ -163,7 +222,7 @@ export class SubscriptionStatusService {
 
       return parsed;
     } catch (error) {
-      throw new SautiError(
+      throw createSautiError(
         'SUBSCRIPTION_CACHE_FAILED',
         'Failed to read cached subscription status.',
         error,
@@ -183,7 +242,7 @@ export class SubscriptionStatusService {
         JSON.stringify(payload),
       );
     } catch (error) {
-      throw new SautiError(
+      throw createSautiError(
         'SUBSCRIPTION_CACHE_FAILED',
         'Failed to cache subscription status.',
         error,

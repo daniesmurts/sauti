@@ -1,5 +1,6 @@
 package com.sautiapp.proxy
 
+import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
 import com.facebook.react.bridge.Arguments
@@ -7,9 +8,16 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ActivityEventListener
 
 class SautiProxyModule(private val context: ReactApplicationContext) :
-  ReactContextBaseJavaModule(context) {
+  ReactContextBaseJavaModule(context), ActivityEventListener {
+
+  private var vpnPermissionPromise: Promise? = null
+
+  init {
+    context.addActivityEventListener(this)
+  }
 
   override fun getName(): String = "SautiProxyModule"
 
@@ -108,5 +116,59 @@ class SautiProxyModule(private val context: ReactApplicationContext) :
     }
 
     promise.resolve(diagnostics)
+  }
+
+  @ReactMethod
+  fun requestVpnPermission(promise: Promise) {
+    val activity = currentActivity
+    if (activity == null) {
+      promise.reject(
+        "NO_ACTIVITY",
+        "No current activity available to present VPN permission dialog.",
+      )
+      return
+    }
+
+    val permissionIntent = VpnService.prepare(activity)
+    if (permissionIntent == null) {
+      promise.resolve(true)
+      return
+    }
+
+    vpnPermissionPromise = promise
+    try {
+      activity.startActivityForResult(permissionIntent, VPN_PERMISSION_REQUEST_CODE)
+    } catch (error: Exception) {
+      vpnPermissionPromise = null
+      promise.reject("VPN_PERMISSION_REQUEST_FAILED", error.message, error)
+    }
+  }
+
+  override fun onActivityResult(
+    activity: Activity,
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?,
+  ) {
+    if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
+      return
+    }
+
+    val promise = vpnPermissionPromise ?: return
+    vpnPermissionPromise = null
+
+    if (resultCode == Activity.RESULT_OK) {
+      promise.resolve(true)
+    } else {
+      promise.reject("VPN_PERMISSION_DENIED", "User denied VPN permission.")
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    // Not handled.
+  }
+
+  companion object {
+    private const val VPN_PERMISSION_REQUEST_CODE = 0x5a27
   }
 }

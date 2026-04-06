@@ -16,6 +16,23 @@ export type MatrixStartupResult =
       reason: 'session_missing' | 'session_expired' | 'session_invalid';
     };
 
+function getErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const candidate = error as {code?: unknown};
+  return typeof candidate.code === 'string' ? candidate.code : null;
+}
+
+function getErrorCause(error: unknown): unknown {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  return (error as {cause?: unknown}).cause;
+}
+
 export async function startMatrixFromStoredSession(
   tokenStore: MatrixSyncTokenStore,
   sessionProvider: MatrixAuthSessionProvider,
@@ -24,34 +41,19 @@ export async function startMatrixFromStoredSession(
     const boot = await bootMatrixRuntimeFromSessionStore(tokenStore, sessionProvider);
     return {status: 'ready', boot};
   } catch (error) {
-    if (error instanceof SautiError) {
-      const cause = error.cause;
-      if (
-        cause instanceof SautiError &&
-        cause.code === 'MATRIX_SESSION_MISSING'
-      ) {
-        return {status: 'signed_out', reason: 'session_missing'};
-      }
+    const errorCode = getErrorCode(error);
+    const causeCode = getErrorCode(getErrorCause(error));
 
-      if (
-        cause instanceof SautiError &&
-        cause.code === 'MATRIX_SESSION_EXPIRED'
-      ) {
-        return {status: 'signed_out', reason: 'session_expired'};
-      }
+    if (errorCode === 'MATRIX_SESSION_MISSING' || causeCode === 'MATRIX_SESSION_MISSING') {
+      return {status: 'signed_out', reason: 'session_missing'};
+    }
 
-      if (
-        cause instanceof SautiError &&
-        cause.code === 'MATRIX_SESSION_INVALID'
-      ) {
-        return {status: 'signed_out', reason: 'session_invalid'};
-      }
+    if (errorCode === 'MATRIX_SESSION_EXPIRED' || causeCode === 'MATRIX_SESSION_EXPIRED') {
+      return {status: 'signed_out', reason: 'session_expired'};
+    }
 
-      throw new SautiError(
-        'MATRIX_STARTUP_FAILED',
-        'Matrix startup from stored session failed.',
-        error,
-      );
+    if (errorCode === 'MATRIX_SESSION_INVALID' || causeCode === 'MATRIX_SESSION_INVALID') {
+      return {status: 'signed_out', reason: 'session_invalid'};
     }
 
     throw new SautiError(

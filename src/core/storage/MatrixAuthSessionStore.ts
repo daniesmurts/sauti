@@ -1,5 +1,4 @@
 import {MatrixAuthSession} from '../matrix/MatrixBoot';
-import {SautiError} from '../matrix/MatrixClient';
 
 const MATRIX_AUTH_SESSION_KEY = 'matrix.auth.session.v1';
 
@@ -13,15 +12,75 @@ interface SecureStoreApi {
   deleteItemAsync(key: string): Promise<void>;
 }
 
+type LocalSautiError = Error & {
+  code: string;
+  cause?: unknown;
+};
+
+function createSautiError(code: string, message: string, cause?: unknown): LocalSautiError {
+  const error = new Error(message) as LocalSautiError;
+  error.name = 'SautiError';
+  error.code = code;
+  if (typeof cause !== 'undefined') {
+    error.cause = cause;
+  }
+  return error;
+}
+
+function isSautiError(error: unknown): error is LocalSautiError {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {name?: unknown; code?: unknown};
+  return candidate.name === 'SautiError' && typeof candidate.code === 'string';
+}
+
+function createInMemorySecureStore(): SecureStoreApi {
+  const data = new Map<string, string>();
+
+  return {
+    async getItemAsync(key: string): Promise<string | null> {
+      return data.get(key) ?? null;
+    },
+    async setItemAsync(key: string, value: string): Promise<void> {
+      data.set(key, value);
+    },
+    async deleteItemAsync(key: string): Promise<void> {
+      data.delete(key);
+    },
+  };
+}
+
 function getDefaultSecureStore(): SecureStoreApi {
+  const runtime = globalThis as {expo?: {EventEmitter?: unknown}};
+
+  if (runtime.expo?.EventEmitter) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return require('expo-secure-store') as SecureStoreApi;
+    } catch {
+      // Fall through to AsyncStorage fallback.
+    }
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('expo-secure-store') as SecureStoreApi;
+    const asyncStorage = require('@react-native-async-storage/async-storage') as {
+      default: {
+        getItem(key: string): Promise<string | null>;
+        setItem(key: string, value: string): Promise<void>;
+        removeItem(key: string): Promise<void>;
+      };
+    };
+
+    return {
+      getItemAsync: key => asyncStorage.default.getItem(key),
+      setItemAsync: (key, value) => asyncStorage.default.setItem(key, value),
+      deleteItemAsync: key => asyncStorage.default.removeItem(key),
+    };
   } catch {
-    throw new SautiError(
-      'MATRIX_SESSION_STORE_FAILED',
-      'SecureStore is unavailable for Matrix session storage.',
-    );
+    return createInMemorySecureStore();
   }
 }
 
@@ -58,7 +117,7 @@ export class MatrixAuthSessionStore {
         JSON.stringify(payload),
       );
     } catch (error) {
-      throw new SautiError(
+      throw createSautiError(
         'MATRIX_SESSION_STORE_FAILED',
         'Failed to persist Matrix auth session in SecureStore.',
         error,
@@ -70,7 +129,7 @@ export class MatrixAuthSessionStore {
     try {
       await this.secureStore.deleteItemAsync(MATRIX_AUTH_SESSION_KEY);
     } catch (error) {
-      throw new SautiError(
+      throw createSautiError(
         'MATRIX_SESSION_STORE_FAILED',
         'Failed to clear Matrix auth session from SecureStore.',
         error,
@@ -85,7 +144,7 @@ export class MatrixAuthSessionStore {
     }
 
     if (raw.expiresAtMs <= this.now()) {
-      throw new SautiError(
+      throw createSautiError(
         'MATRIX_SESSION_EXPIRED',
         'Stored Matrix auth session has expired.',
       );
@@ -103,7 +162,7 @@ export class MatrixAuthSessionStore {
     const session = await this.loadSession();
 
     if (!session) {
-      throw new SautiError(
+      throw createSautiError(
         'MATRIX_SESSION_MISSING',
         'No Matrix auth session found in SecureStore.',
       );
@@ -122,7 +181,7 @@ export class MatrixAuthSessionStore {
 
       const parsed: unknown = JSON.parse(raw);
       if (!isStoredSession(parsed)) {
-        throw new SautiError(
+        throw createSautiError(
           'MATRIX_SESSION_INVALID',
           'Stored Matrix auth session is malformed.',
         );
@@ -130,11 +189,11 @@ export class MatrixAuthSessionStore {
 
       return parsed;
     } catch (error) {
-      if (error instanceof SautiError) {
+      if (isSautiError(error)) {
         throw error;
       }
 
-      throw new SautiError(
+      throw createSautiError(
         'MATRIX_SESSION_INVALID',
         'Stored Matrix auth session could not be parsed.',
         error,

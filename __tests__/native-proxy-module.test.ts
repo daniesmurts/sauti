@@ -30,6 +30,7 @@ describe('NativeProxyModule bridge', () => {
         permissionRequired: false,
         lastError: null,
       }),
+      requestVpnPermission: async () => true,
     };
 
     (NativeModules as Record<string, unknown>).SautiProxyModule = nativeModule;
@@ -37,6 +38,20 @@ describe('NativeProxyModule bridge', () => {
     const resolved = getNativeProxyModule();
     expect(resolved).toBe(nativeModule);
     await expect(resolved!.getStatus()).resolves.toBe('disabled');
+  });
+
+  it('returns null when requestVpnPermission method is absent from bridge', () => {
+    (NativeModules as Record<string, unknown>).SautiProxyModule = {
+      init: async () => true,
+      enable: async () => true,
+      disable: async () => false,
+      isEnabled: async () => false,
+      getStatus: async () => 'disabled',
+      getDiagnostics: async () => ({status: 'disabled', isRunning: false, permissionRequired: false, lastError: null}),
+      // requestVpnPermission intentionally omitted
+    };
+
+    expect(getNativeProxyModule()).toBeNull();
   });
 
   it('returns native diagnostics when bridge is available', async () => {
@@ -54,6 +69,7 @@ describe('NativeProxyModule bridge', () => {
       isEnabled: async () => false,
       getStatus: async () => 'failed',
       getDiagnostics: async () => diagnostics,
+      requestVpnPermission: async () => false,
     };
 
     await expect(getNativeProxyDiagnostics()).resolves.toEqual(diagnostics);
@@ -72,11 +88,50 @@ describe('NativeProxyModule bridge', () => {
         permissionRequired: false,
         lastError: null,
       }),
+      requestVpnPermission: async () => true,
     };
 
     const manager = new AndroidVpnProxyManager();
     await manager.init();
 
+    expect(manager.getStatus()).toBe('connected');
+  });
+
+  it('android vpn proxy manager requests permission then retries enable', async () => {
+    let permissionGranted = false;
+    let enableCallCount = 0;
+
+    (NativeModules as Record<string, unknown>).SautiProxyModule = {
+      init: async () => false,
+      enable: async () => {
+        enableCallCount += 1;
+        if (!permissionGranted) {
+          const err = Object.assign(new Error('VPN permission required'), {
+            code: 'PROXY_PERMISSION_REQUIRED',
+          });
+          throw err;
+        }
+        return true;
+      },
+      disable: async () => false,
+      isEnabled: async () => permissionGranted,
+      getStatus: async () => (permissionGranted ? 'connected' : 'disabled'),
+      getDiagnostics: async () => ({
+        status: permissionGranted ? 'connected' : 'disabled',
+        isRunning: permissionGranted,
+        permissionRequired: !permissionGranted,
+        lastError: null,
+      }),
+      requestVpnPermission: async () => {
+        permissionGranted = true;
+        return true;
+      },
+    };
+
+    const manager = new AndroidVpnProxyManager();
+    await manager.enable();
+
+    expect(enableCallCount).toBe(2);
     expect(manager.getStatus()).toBe('connected');
   });
 

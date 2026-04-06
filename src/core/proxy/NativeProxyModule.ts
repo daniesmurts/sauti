@@ -16,6 +16,7 @@ export interface NativeProxyModule {
   isEnabled(): Promise<boolean>;
   getStatus(): Promise<NativeProxyStatus>;
   getDiagnostics(): Promise<NativeProxyDiagnostics>;
+  requestVpnPermission(): Promise<boolean>;
 }
 
 export function getNativeProxyModule(): NativeProxyModule | null {
@@ -31,7 +32,8 @@ export function getNativeProxyModule(): NativeProxyModule | null {
     typeof module.disable !== 'function' ||
     typeof module.isEnabled !== 'function' ||
     typeof module.getStatus !== 'function' ||
-    typeof module.getDiagnostics !== 'function'
+    typeof module.getDiagnostics !== 'function' ||
+    typeof module.requestVpnPermission !== 'function'
   ) {
     return null;
   }

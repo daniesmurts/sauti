@@ -98,7 +98,18 @@ export class AndroidVpnProxyManager implements ProxyManager {
       throw new Error('SautiProxyModule is unavailable.');
     }
 
-    await module.enable();
+    try {
+      await module.enable();
+    } catch (error: unknown) {
+      const code = (error as {code?: string}).code;
+      if (code === 'PROXY_PERMISSION_REQUIRED') {
+        await module.requestVpnPermission();
+        await module.enable();
+      } else {
+        throw error;
+      }
+    }
+
     this.syncStatus(await module.getStatus());
   }
 
