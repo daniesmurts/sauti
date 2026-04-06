@@ -48,6 +48,9 @@ yarn-error.log
 # Supabase local CLI state
 supabase/.temp/
 
+# Validation evidence artifacts (device logs/screenshots)
+artifacts/validation/
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
