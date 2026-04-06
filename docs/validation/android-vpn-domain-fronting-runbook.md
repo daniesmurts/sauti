@@ -7,15 +7,22 @@ Use it with:
 
 ## Prerequisites
 - Physical Android device connected with USB debugging enabled.
+- Device authorized in adb (accept RSA prompt on phone if shown).
 - Latest app build installed on device.
 - Backend reachable and smoke receiver account ready.
 - adb available in PATH.
+
+If multiple devices are connected, set ANDROID_SERIAL to target one device explicitly.
 
 ## Evidence Session Setup
 1. Start capture session:
 ```bash
 cd SautiApp
 RUN_ID=net01-$(date +%Y%m%d-%H%M%S) bash scripts/validation/android-evidence-capture.sh start
+```
+With explicit device selection:
+```bash
+RUN_ID=net01-$(date +%Y%m%d-%H%M%S) ANDROID_SERIAL=<device-serial> bash scripts/validation/android-evidence-capture.sh start
 ```
 2. During each step, capture screenshots:
 ```bash

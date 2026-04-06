@@ -7,6 +7,8 @@ set -euo pipefail
 OUT_ROOT="${OUT_ROOT:-artifacts/validation}"
 RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
 OUT_DIR="${OUT_ROOT}/${RUN_ID}"
+TARGET_SERIAL=""
+ADB_CMD=(adb)
 
 mkdir -p "${OUT_DIR}"
 
@@ -17,21 +19,52 @@ ensure_adb() {
   fi
 }
 
-ensure_device() {
-  local state
-  state="$(adb get-state 2>/dev/null || true)"
-  if [[ "${state}" != "device" ]]; then
-    echo "ERROR: no Android device detected by adb."
-    echo "Hint: run 'adb devices' and connect a physical device."
+resolve_target_device() {
+  local line
+  local -a devices
+  local -a device_lines
+
+  while IFS= read -r line; do
+    device_lines+=("${line}")
+  done < <(adb devices | tail -n +2)
+
+  if [[ -n "${ANDROID_SERIAL:-}" ]]; then
+    TARGET_SERIAL="${ANDROID_SERIAL}"
+    if ! printf '%s\n' "${device_lines[@]}" | grep -qE "^${TARGET_SERIAL}[[:space:]]+device$"; then
+      echo "ERROR: ANDROID_SERIAL=${TARGET_SERIAL} is not in 'device' state."
+      echo "Run: adb devices -l"
+      exit 1
+    fi
+    ADB_CMD=(adb -s "${TARGET_SERIAL}")
+    return
+  fi
+
+  while IFS= read -r line; do
+    if [[ -n "${line}" ]]; then
+      devices+=("${line}")
+    fi
+  done < <(printf '%s\n' "${device_lines[@]}" | awk '$2=="device" {print $1}')
+  if [[ "${#devices[@]}" -eq 0 ]]; then
+    echo "ERROR: no Android device in 'device' state detected by adb."
+    echo "Hint: authorize your phone on-device or set ANDROID_SERIAL for a specific target."
+    echo "Run: adb devices -l"
     exit 1
+  fi
+
+  TARGET_SERIAL="${devices[0]}"
+  ADB_CMD=(adb -s "${TARGET_SERIAL}")
+
+  if [[ "${#devices[@]}" -gt 1 ]]; then
+    echo "INFO: multiple devices detected; defaulting to ${TARGET_SERIAL}."
+    echo "Set ANDROID_SERIAL to target a different device."
   fi
 }
 
 start_logcat() {
-  adb logcat -c
-  adb logcat -v time >"${OUT_DIR}/logcat.txt" 2>&1 &
+  "${ADB_CMD[@]}" logcat -c
+  nohup "${ADB_CMD[@]}" logcat -v time >"${OUT_DIR}/logcat.txt" 2>&1 &
   LOGCAT_PID=$!
-  echo "Started logcat capture (pid ${LOGCAT_PID})."
+  echo "Started logcat capture for ${TARGET_SERIAL} (pid ${LOGCAT_PID})."
 }
 
 stop_logcat() {
@@ -47,9 +80,9 @@ capture_screenshot() {
   local remote="/sdcard/${name}.png"
   local local_path="${OUT_DIR}/${name}.png"
 
-  adb shell screencap -p "${remote}"
-  adb pull "${remote}" "${local_path}" >/dev/null
-  adb shell rm -f "${remote}" >/dev/null
+  "${ADB_CMD[@]}" shell screencap -p "${remote}"
+  "${ADB_CMD[@]}" pull "${remote}" "${local_path}" >/dev/null
+  "${ADB_CMD[@]}" shell rm -f "${remote}" >/dev/null
   echo "Saved screenshot: ${local_path}"
 }
 
@@ -63,6 +96,7 @@ Usage:
 Environment:
   OUT_ROOT  Output root directory (default: artifacts/validation)
   RUN_ID    Session identifier (default: timestamp)
+  ANDROID_SERIAL  Optional adb serial to target specific device
 
 Notes:
   - Use the same RUN_ID for start/screenshot/stop in one test session.
@@ -79,14 +113,14 @@ main() {
   case "${command}" in
     start)
       ensure_adb
-      ensure_device
+      resolve_target_device
       start_logcat
       echo "${LOGCAT_PID}" >"${OUT_DIR}/logcat.pid"
       echo "Output directory: ${OUT_DIR}"
       ;;
     screenshot)
       ensure_adb
-      ensure_device
+      resolve_target_device
       local name="${2:-}"
       if [[ -z "${name}" ]]; then
         echo "ERROR: screenshot name is required."
@@ -112,5 +146,4 @@ main() {
   esac
 }
 
-trap stop_logcat EXIT
 main "$@"
