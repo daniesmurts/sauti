@@ -12,17 +12,40 @@ import {
 const env = readSupabaseFunctionEnv();
 
 const gateway: OtpRequestGateway = {
-  async requestOtp() {
-    if (!env.otpTestCode) {
-      throw new Error(
-        'OTP provider request integration not configured. Set SAUTI_TEST_OTP_CODE for local OTP testing or wire a production provider.',
-      );
+  async requestOtp(input) {
+    // Production path: call real OTP provider API (e.g. Twilio Verify)
+    if (env.otpProviderUrl) {
+      const response = await fetch(env.otpProviderUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(env.otpProviderApiKey ? {'Authorization': `Bearer ${env.otpProviderApiKey}`} : {}),
+        },
+        body: JSON.stringify({phoneNumber: input.phoneNumber}),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OTP provider returned status ${response.status}`);
+      }
+
+      const result = await response.json() as {providerRequestId?: string; expiresInSeconds?: number};
+      return {
+        providerRequestId: result.providerRequestId ?? crypto.randomUUID(),
+        expiresInSeconds: result.expiresInSeconds ?? 300,
+      };
     }
 
-    return {
-      providerRequestId: crypto.randomUUID(),
-      expiresInSeconds: 300,
-    };
+    // Test mode: accept hardcoded test code for local development
+    if (env.otpTestCode) {
+      return {
+        providerRequestId: crypto.randomUUID(),
+        expiresInSeconds: 300,
+      };
+    }
+
+    throw new Error(
+      'OTP provider not configured. Set OTP_PROVIDER_URL for production or SAUTI_TEST_OTP_CODE for local testing.',
+    );
   },
 };
 

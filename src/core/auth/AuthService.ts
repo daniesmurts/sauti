@@ -411,7 +411,16 @@ export class AuthService {
     const parsed = parseJsonObject(raw);
 
     if (parsed && this.isAuthSessionShape(parsed)) {
-      return parsed as unknown as AuthSession;
+      const user = parsed.user as {id: string; email?: string};
+      return {
+        accessToken: parsed.accessToken as string,
+        refreshToken: typeof parsed.refreshToken === 'string' ? parsed.refreshToken : undefined,
+        expiresAt: typeof parsed.expiresAt === 'number' ? parsed.expiresAt : undefined,
+        user: {
+          id: user.id,
+          email: typeof user.email === 'string' ? user.email : undefined,
+        },
+      };
     }
 
     try {

@@ -1,3 +1,4 @@
+import {logger} from '../../utils/logger';
 import {ProxyFetchFn, ProxyHttpsAgent, ProxyManager, ProxyStatus} from './ProxyManager';
 import {initializeDomainFrontingPinning} from './SslPublicKeyPinning';
 
@@ -50,11 +51,19 @@ export class DomainFrontingProxyManager implements ProxyManager {
     }
 
     this.status = 'connecting';
-    await initializeDomainFrontingPinning({
-      host: this.config.frontingHost,
-      publicKeyHashes: this.config.frontingPublicKeyHashes,
-    });
-    this.status = 'connected';
+    try {
+      await initializeDomainFrontingPinning({
+        host: this.config.frontingHost,
+        publicKeyHashes: this.config.frontingPublicKeyHashes,
+      });
+      this.status = 'connected';
+    } catch (error) {
+      logger.error('Domain fronting pinning initialization failed', {
+        error: error instanceof Error ? error.message : String(error),
+        host: this.config.frontingHost,
+      });
+      this.status = 'failed';
+    }
   }
 
   getStatus(): ProxyStatus {
