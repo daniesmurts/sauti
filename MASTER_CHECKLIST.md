@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (79 suites, 341 tests)
+Status basis: current implementation in SautiApp plus passing test suite (80 suites, 358 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -156,11 +156,11 @@ Acceptance criteria:
 - [ ] Connectivity tests documented for Russia-side constraints.
 
 ### 4) IncomingCall screen with react-native-callkeep
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Incoming call UI implemented.
-- [ ] Lock-screen presentation works on Android/iOS.
-- [ ] Accept/decline actions wired to signaling.
+- [x] Incoming call UI implemented.
+- [x] Lock-screen presentation works on Android/iOS.
+- [x] Accept/decline actions wired to signaling.
 
 ### 5) CallScreen with adaptive quality
 Tag: TODO
