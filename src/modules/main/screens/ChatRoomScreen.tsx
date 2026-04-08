@@ -1,8 +1,9 @@
 import React from 'react';
-import {FlatList, StyleSheet, Text, TextInput, View} from 'react-native';
+import {FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {useScreenCaptureProtection} from '../../../core/security/screenCaptureProtection';
 import {Avatar, Button, MessageBubble, Screen, VoiceNoteRecordButton} from '../../../ui/components';
+import type {ImageContent} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
 
 export interface VoiceNoteAttachment {
@@ -17,6 +18,7 @@ export interface ChatMessage {
   timestampLabel: string;
   status?: 'sending' | 'sent' | 'delivered' | 'read';
   voiceNote?: VoiceNoteAttachment;
+  image?: ImageContent;
 }
 
 export interface ChatRoom {
@@ -34,6 +36,7 @@ export interface ChatRoomScreenProps {
   onDraftChange(value: string): void;
   onSend(): void;
   onSendVoiceNote?(filePath: string, durationMs: number): void;
+  onAttachImage?(): void;
 }
 
 export function ChatRoomScreen({
@@ -45,6 +48,7 @@ export function ChatRoomScreen({
   onDraftChange,
   onSend,
   onSendVoiceNote,
+  onAttachImage,
 }: ChatRoomScreenProps): React.JSX.Element {
   useScreenCaptureProtection(true);
 
@@ -72,6 +76,7 @@ export function ChatRoomScreen({
             timestamp={item.timestampLabel}
             status={item.status}
             voiceNote={item.voiceNote}
+            image={item.image}
           />
         )}
       />
@@ -81,6 +86,16 @@ export function ChatRoomScreen({
           <Text style={styles.sendError}>{sendError}</Text>
         ) : null}
         <View style={styles.inputRow}>
+          {onAttachImage ? (
+            <TouchableOpacity
+              style={styles.attachButton}
+              accessibilityLabel="Attach image"
+              onPress={onAttachImage}
+              testID="attach-image-button">
+              <Text style={styles.attachIcon}>📎</Text>
+            </TouchableOpacity>
+          ) : null}
+
           <TextInput
             accessibilityLabel="message-input"
             value={draftMessage}
@@ -91,6 +106,7 @@ export function ChatRoomScreen({
             multiline
             maxLength={1000}
           />
+
           {draftMessage.trim().length > 0 ? (
             <Button label="Send" size="sm" onPress={onSend} />
           ) : onSendVoiceNote ? (
@@ -141,6 +157,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.sm,
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachIcon: {
+    fontSize: 20,
   },
   sendError: {
     ...TextPresets.caption,

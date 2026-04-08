@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (82 suites, 384 tests)
+Status basis: current implementation in SautiApp plus passing test suite (83 suites, 396 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -177,11 +177,11 @@ Acceptance criteria:
 - [x] Playback bubble UI implemented.
 
 ### 7) Image send/receive with compression
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Compression utility integrated for outbound images.
-- [ ] Inline image rendering with tap-to-expand implemented.
-- [ ] Manual download behavior respects connection setting.
+- [x] Compression utility integrated for outbound images.
+- [x] Inline image rendering with tap-to-expand implemented.
+- [x] Manual download behavior respects connection setting.
 
 ### 8) iOS NEPacketTunnelProvider (obfuscation v2)
 Tag: BLOCKED

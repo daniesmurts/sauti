@@ -4,6 +4,7 @@ import {Colors} from '../tokens/colors';
 import {Radius, Spacing} from '../tokens/spacing';
 import {FontSize} from '../tokens/typography';
 import {VoiceNotePlayer} from './VoiceNotePlayer';
+import {InlineImage} from './InlineImage';
 
 export type MessageDirection = 'incoming' | 'outgoing';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
@@ -13,12 +14,21 @@ export interface VoiceNoteContent {
   durationMs: number;
 }
 
+export interface ImageContent {
+  uri: string;
+  width: number;
+  height: number;
+  /** Pass false to show a download gate (e.g. on cellular when wifi_only is set). */
+  autoDownload?: boolean;
+}
+
 export interface MessageBubbleProps {
   text: string;
   direction: MessageDirection;
   timestamp: string;
   status?: MessageStatus;
   voiceNote?: VoiceNoteContent;
+  image?: ImageContent;
   testID?: string;
 }
 
@@ -35,6 +45,7 @@ export function MessageBubble({
   timestamp,
   status,
   voiceNote,
+  image,
   testID,
 }: MessageBubbleProps): React.JSX.Element {
   const isOutgoing = direction === 'outgoing';
@@ -49,6 +60,13 @@ export function MessageBubble({
             uri={voiceNote.uri}
             durationMs={voiceNote.durationMs}
             direction={direction}
+          />
+        ) : image ? (
+          <InlineImage
+            uri={image.uri}
+            width={image.width}
+            height={image.height}
+            autoDownload={image.autoDownload}
           />
         ) : (
           <Text style={[styles.text, isOutgoing ? styles.textOut : styles.textIn]}>
