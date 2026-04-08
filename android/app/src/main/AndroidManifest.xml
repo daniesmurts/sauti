@@ -12,6 +12,11 @@
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
   <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <!-- Required by react-native-callkeep (Android ConnectionService / telecom API) -->
+  <uses-permission android:name="android.permission.CALL_PHONE" />
+  <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+  <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+  <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
 
   <application
     android:name=".MainApplication"
@@ -46,6 +51,20 @@
       android:exported="false">
       <intent-filter>
         <action android:name="android.net.VpnService" />
+      </intent-filter>
+    </service>
+
+    <!--
+      react-native-callkeep: Android telecom ConnectionService.
+      Handles lock-screen incoming call UI and outgoing call integration.
+    -->
+    <service
+      android:name="io.wazo.callkeep.VoiceConnectionService"
+      android:label="@string/app_name"
+      android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.telecom.ConnectionService" />
       </intent-filter>
     </service>
 

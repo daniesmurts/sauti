@@ -28,7 +28,20 @@ export interface RTCIceServer {
   credential?: string;
 }
 
-export function buildIceConfig(creds: TurnCredentials): RTCConfiguration {
+/**
+ * Build RTCConfiguration.
+ * Pass null to get a STUN-only 'all' policy config (dev/test fallback).
+ */
+export function buildIceConfig(creds: TurnCredentials | null): RTCConfiguration {
+  if (!creds) {
+    return {
+      iceServers: [{urls: ['stun:stun.l.google.com:19302']}],
+      iceTransportPolicy: 'all',
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
+    };
+  }
+
   // Derive the UDP fallback URL by replacing :443 with :3478
   const udpUrl = creds.url.replace(/:443$/, ':3478') + '?transport=udp';
   const tcpUrl = creds.url + '?transport=tcp';

@@ -5,7 +5,7 @@ import {StyleSheet, Text, View} from 'react-native';
 
 import {MainFlowScreen} from '../modules/main';
 import {SettingsSecurityScreen} from '../modules/settings';
-import {CallLogScreen} from '../modules/calling';
+import {CallLogScreen, CallProvider} from '../modules/calling';
 import {Colors, Spacing, TextPresets} from '../ui/tokens';
 import {useScreenCaptureProtection} from '../core/security/screenCaptureProtection';
 import {
@@ -13,6 +13,8 @@ import {
   subscribeNotificationOpen,
 } from '../core/notifications';
 import {useAuthRedirect} from '../modules/auth/hooks/useAuthRedirect';
+import {matrixClient} from '../core/matrix';
+import {getCoreAppRuntime} from '../core/runtime';
 
 type RootTabParamList = {
   Chats: undefined;
@@ -101,28 +103,32 @@ export function RootNavigator(): React.JSX.Element {
     };
   }, []);
 
+  const localUserId = getCoreAppRuntime().getCurrentUserId();
+
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Tab.Navigator
-        initialRouteName="Chats"
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: Colors.brand[600],
-          tabBarInactiveTintColor: Colors.neutral[500],
-        }}>
-        <Tab.Screen name="Chats">
-          {() => (
-            <MainFlowScreen
-              initialRoomId={pendingRoomId ?? undefined}
-              onRoomOpened={() => setPendingRoomId(null)}
-            />
-          )}
-        </Tab.Screen>
-        <Tab.Screen name="Calls" component={CallsTabScreen} />
-        <Tab.Screen name="Contacts" component={ContactsTabScreen} />
-        <Tab.Screen name="Settings" component={SettingsTabScreen} />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <CallProvider localUserId={localUserId} transport={matrixClient}>
+      <NavigationContainer ref={navigationRef}>
+        <Tab.Navigator
+          initialRouteName="Chats"
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: Colors.brand[600],
+            tabBarInactiveTintColor: Colors.neutral[500],
+          }}>
+          <Tab.Screen name="Chats">
+            {() => (
+              <MainFlowScreen
+                initialRoomId={pendingRoomId ?? undefined}
+                onRoomOpened={() => setPendingRoomId(null)}
+              />
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Calls" component={CallsTabScreen} />
+          <Tab.Screen name="Contacts" component={ContactsTabScreen} />
+          <Tab.Screen name="Settings" component={SettingsTabScreen} />
+        </Tab.Navigator>
+      </NavigationContainer>
+    </CallProvider>
   );
 }
 
