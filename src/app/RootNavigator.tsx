@@ -69,6 +69,7 @@ function SettingsTabScreen(): React.JSX.Element {
 }
 
 export function RootNavigator(): React.JSX.Element {
+  useScreenCaptureProtection(true);
   const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
 
   useAuthRedirect({

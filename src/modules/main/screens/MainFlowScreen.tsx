@@ -3,6 +3,7 @@ import React from 'react';
 import {getCoreAppRuntime} from '../../../core/runtime';
 import {Platform} from 'react-native';
 import {SautiError} from '../../../core/matrix';
+import {logger} from '../../../utils/logger';
 
 import {
   createRuntimeRecentConversationTargetsStore,
@@ -113,8 +114,11 @@ export function MainFlowScreen({
     try {
       const fetchedConversations = await resolvedGateway.listConversations();
       setConversations(fetchedConversations);
-    } catch {
-      setConversations([]);
+    } catch (error) {
+      logger.warn('Failed to refresh conversations', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Keep previous conversations on refresh failure rather than clearing
     }
   }, [resolvedGateway]);
 
@@ -127,8 +131,12 @@ export function MainFlowScreen({
     try {
       const fetchedMessages = await resolvedGateway.listRoomMessages(activeRoomId);
       setActiveMessages(fetchedMessages);
-    } catch {
-      setActiveMessages([]);
+    } catch (error) {
+      logger.warn('Failed to refresh room messages', {
+        roomId: activeRoomId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Keep previous messages on refresh failure rather than clearing
     }
   }, [activeRoomId, resolvedGateway]);
 
@@ -233,6 +241,8 @@ export function MainFlowScreen({
     );
   }, [activeRoomId, conversations]);
 
+  const [sendError, setSendError] = React.useState<string | undefined>();
+
   const handleSend = React.useCallback(async () => {
     if (!activeRoomId) {
       return;
@@ -243,10 +253,19 @@ export function MainFlowScreen({
       return;
     }
 
-    await resolvedGateway.sendText(activeRoomId, normalized);
-    setDraftMessage('');
-    await refreshActiveRoomMessages();
-    await refreshConversations();
+    setSendError(undefined);
+    try {
+      await resolvedGateway.sendText(activeRoomId, normalized);
+      setDraftMessage('');
+      await refreshActiveRoomMessages();
+      await refreshConversations();
+    } catch (error) {
+      logger.error('Failed to send message', {
+        roomId: activeRoomId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setSendError('Message failed to send. Tap Send to retry.');
+    }
   }, [
     activeRoomId,
     draftMessage,
@@ -381,11 +400,18 @@ export function MainFlowScreen({
       room={activeConversation}
       messages={activeMessages}
       draftMessage={draftMessage}
+      sendError={sendError}
       onBack={() => {
         setDraftMessage('');
+        setSendError(undefined);
         setActiveRoomId(null);
       }}
-      onDraftChange={setDraftMessage}
+      onDraftChange={value => {
+        setDraftMessage(value);
+        if (sendError) {
+          setSendError(undefined);
+        }
+      }}
       onSend={() => {
         void handleSend();
       }}

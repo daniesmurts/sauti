@@ -1,25 +1,11 @@
 import {MatrixSyncTokenStore} from '../matrix';
+import {SautiError} from '../matrix/MatrixClient';
 
 const MATRIX_SYNC_TOKEN_KEY = 'matrix.sync.token.v1';
 
 interface SecureStoreApi {
   getItemAsync(key: string): Promise<string | null>;
   setItemAsync(key: string, value: string): Promise<void>;
-}
-
-type LocalSautiError = Error & {
-  code: string;
-  cause?: unknown;
-};
-
-function createSautiError(code: string, message: string, cause?: unknown): LocalSautiError {
-  const error = new Error(message) as LocalSautiError;
-  error.name = 'SautiError';
-  error.code = code;
-  if (typeof cause !== 'undefined') {
-    error.cause = cause;
-  }
-  return error;
 }
 
 function createInMemorySecureStore(): SecureStoreApi {
@@ -61,7 +47,7 @@ export class MatrixSyncSecureStoreTokenStore implements MatrixSyncTokenStore {
     try {
       return await this.secureStore.getItemAsync(MATRIX_SYNC_TOKEN_KEY);
     } catch (error) {
-      throw createSautiError(
+      throw new SautiError(
         'MATRIX_SYNC_TOKEN_PERSIST_FAILED',
         'Failed to load Matrix sync token from SecureStore.',
         error,
@@ -73,7 +59,7 @@ export class MatrixSyncSecureStoreTokenStore implements MatrixSyncTokenStore {
     try {
       await this.secureStore.setItemAsync(MATRIX_SYNC_TOKEN_KEY, token);
     } catch (error) {
-      throw createSautiError(
+      throw new SautiError(
         'MATRIX_SYNC_TOKEN_PERSIST_FAILED',
         'Failed to persist Matrix sync token in SecureStore.',
         error,

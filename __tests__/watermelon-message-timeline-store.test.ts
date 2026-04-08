@@ -54,7 +54,7 @@ describe('WatermelonMessageTimelineStore', () => {
     expect(firstResult).toBe('inserted');
     expect(rows).toHaveLength(1);
     expect(rows[0]._raw.matrix_event_id).toBe('$event-1');
-    expect(rows[0]._raw.status).toBe('delivered');
+    expect(rows[0]._raw.status).toBe('sent');
     expect(rows[0]._raw.is_read).toBe(false);
 
     const secondResult = await store.upsertFromMatrixEvent(

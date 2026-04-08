@@ -8,7 +8,7 @@ import {OtpAuthService, type RequestOtpResult} from '../api';
 import {createAuthController, type AuthController} from '../controller';
 import {type AuthStoreSnapshot} from '../store';
 
-import {OTPVerificationScreen, type OTPSubmitPayload} from './OTPVerificationScreen';
+import {PhoneOTPVerificationScreen as OTPVerificationScreen, type OTPSubmitPayload} from './PhoneOTPVerificationScreen';
 import {PhoneEntryScreen} from './PhoneEntryScreen';
 import {ProfileSetupScreen, type ProfileSetupPayload} from './ProfileSetupScreen';
 

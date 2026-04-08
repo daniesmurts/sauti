@@ -23,6 +23,7 @@ export interface ChatRoomScreenProps {
   room: ChatRoom;
   messages: ChatMessage[];
   draftMessage: string;
+  sendError?: string;
   onBack(): void;
   onDraftChange(value: string): void;
   onSend(): void;
@@ -32,6 +33,7 @@ export function ChatRoomScreen({
   room,
   messages,
   draftMessage,
+  sendError,
   onBack,
   onDraftChange,
   onSend,
@@ -66,22 +68,27 @@ export function ChatRoomScreen({
       />
 
       <View style={styles.inputBar}>
-        <TextInput
-          accessibilityLabel="message-input"
-          value={draftMessage}
-          onChangeText={onDraftChange}
-          style={styles.input}
-          placeholder="Write a message"
-          placeholderTextColor={Colors.neutral[400]}
-          multiline
-          maxLength={1000}
-        />
-        <Button
-          label="Send"
-          size="sm"
-          onPress={onSend}
-          disabled={draftMessage.trim().length === 0}
-        />
+        {sendError ? (
+          <Text style={styles.sendError}>{sendError}</Text>
+        ) : null}
+        <View style={styles.inputRow}>
+          <TextInput
+            accessibilityLabel="message-input"
+            value={draftMessage}
+            onChangeText={onDraftChange}
+            style={styles.input}
+            placeholder="Write a message"
+            placeholderTextColor={Colors.neutral[400]}
+            multiline
+            maxLength={1000}
+          />
+          <Button
+            label="Send"
+            size="sm"
+            onPress={onSend}
+            disabled={draftMessage.trim().length === 0}
+          />
+        </View>
       </View>
     </Screen>
   );
@@ -114,13 +121,21 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.neutral[200],
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.base,
+    gap: Spacing.xs,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+  },
+  sendError: {
+    ...TextPresets.caption,
+    color: Colors.semantic.error,
+    paddingHorizontal: Spacing.xs,
   },
   input: {
     flex: 1,

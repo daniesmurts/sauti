@@ -1,5 +1,6 @@
 import {MatrixClientEvent} from '../matrix';
 import {IncomingMatrixMessage, MessageTimelineStore} from '../db';
+import {logger} from '../../utils/logger';
 
 export interface MatrixEventSource {
   subscribe(listener: (event: MatrixClientEvent) => void): () => void;
@@ -36,7 +37,13 @@ export class MatrixTimelineReconciliationService {
       void this.timelineStore.upsertFromMatrixEvent(
         message,
         this.currentUserIdProvider(),
-      );
+      ).catch((error: unknown) => {
+        logger.warn('Failed to persist incoming timeline event', {
+          eventId: event.eventId,
+          roomId: event.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     });
   }
 

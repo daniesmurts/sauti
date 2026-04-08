@@ -14,13 +14,37 @@ const env = readSupabaseFunctionEnv();
 
 const gateway: OtpVerificationGateway = {
   async verifyOtp(input) {
-    if (!env.otpTestCode) {
-      throw new Error(
-        'OTP provider verification integration not configured. Set SAUTI_TEST_OTP_CODE for local OTP testing or wire a production provider.',
-      );
+    // Production path: call real OTP provider API (e.g. Twilio Verify)
+    if (env.otpProviderUrl) {
+      const response = await fetch(env.otpProviderUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(env.otpProviderApiKey ? {'Authorization': `Bearer ${env.otpProviderApiKey}`} : {}),
+        },
+        body: JSON.stringify({
+          phoneNumber: input.phoneNumber,
+          otpCode: input.otpCode,
+          providerRequestId: input.providerRequestId,
+        }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const result = await response.json() as {verified?: boolean};
+      return result.verified === true;
     }
 
-    return input.otpCode === env.otpTestCode;
+    // Test mode: accept hardcoded test code for local development
+    if (env.otpTestCode) {
+      return input.otpCode === env.otpTestCode;
+    }
+
+    throw new Error(
+      'OTP provider not configured. Set OTP_PROVIDER_URL for production or SAUTI_TEST_OTP_CODE for local testing.',
+    );
   },
 };
 

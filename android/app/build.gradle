@@ -1,7 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
+apply from: new File(rootProject.projectDir, "../node_modules/react-native-config/android/dotenv.gradle")
 
 /**
  * This is the configuration block to customize your React Native Android app.

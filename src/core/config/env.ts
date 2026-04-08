@@ -1,7 +1,23 @@
 import {SautiError} from '../matrix/MatrixClient';
-import {NativeModules} from 'react-native';
 
-import Config from 'react-native-config';
+// Lazy-load react-native-config to prevent crashes when the native module is unavailable.
+// The native module can be null when the app launches before autolinking completes or in
+// test environments. We fall back to DEV_FALLBACK_ENV in __DEV__ mode.
+function loadConfig(): Record<string, string | undefined> | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('react-native-config') as
+      | {default?: Record<string, string | undefined>}
+      | Record<string, string | undefined>
+      | null;
+    if (!mod) {
+      return null;
+    }
+    return (mod as {default?: Record<string, string | undefined>}).default ?? (mod as Record<string, string | undefined>);
+  } catch {
+    return null;
+  }
+}
 
 export interface MatrixEnvConfig {
   matrixHomeserverUrl: string;
@@ -47,22 +63,9 @@ function isAppEnvSource(source: unknown): source is EnvSource {
 }
 
 function readDefaultEnvSource(): EnvSource {
-  if (isAppEnvSource(Config)) {
-    return Config as unknown as EnvSource;
-  }
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const loaded = require('react-native-config') as
-      | EnvSource
-      | {default?: EnvSource};
-
-    const inner = (loaded as {default?: EnvSource}).default ?? (loaded as EnvSource);
-    if (isAppEnvSource(inner)) {
-      return inner as EnvSource;
-    }
-  } catch {
-    // fall through
+  const config = loadConfig();
+  if (isAppEnvSource(config)) {
+    return config;
   }
 
   if (__DEV__) {
@@ -103,8 +106,14 @@ function isLikelyDomain(value: string): boolean {
   return /^[a-z0-9.-]+$/i.test(value) && value.includes('.');
 }
 
+const PLACEHOLDER_PIN_PATTERN = /^([A-Z])\1{42}=$/;
+
 function isLikelySha256Base64Pin(value: string): boolean {
   return /^[A-Za-z0-9+/]{43}=$/.test(value);
+}
+
+function isPlaceholderPin(value: string): boolean {
+  return PLACEHOLDER_PIN_PATTERN.test(value);
 }
 
 function parseFrontingPinHashes(raw: string): string[] {
@@ -125,6 +134,13 @@ function parseFrontingPinHashes(raw: string): string[] {
       throw new SautiError(
         'MATRIX_CONFIG_INVALID',
         'Invalid pin format in CF_FRONTING_PUBLIC_KEY_HASHES.',
+      );
+    }
+
+    if (!__DEV__ && isPlaceholderPin(pin)) {
+      throw new SautiError(
+        'MATRIX_CONFIG_INVALID',
+        'Production build must not use placeholder TLS pin hashes. Replace CF_FRONTING_PUBLIC_KEY_HASHES with real certificate pins.',
       );
     }
   }

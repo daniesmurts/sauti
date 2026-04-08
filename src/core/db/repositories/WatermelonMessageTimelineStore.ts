@@ -56,7 +56,7 @@ export class WatermelonMessageTimelineStore implements MessageTimelineStore {
     const status =
       message.senderId === currentUserId
         ? 'delivered'
-        : 'delivered';
+        : 'sent';
 
     if (existing) {
       await existing.update(() => {
