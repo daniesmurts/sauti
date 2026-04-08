@@ -43,6 +43,12 @@ export interface V2RayEnvConfig {
   wsPath: string;
 }
 
+export interface TurnEnvConfig {
+  turnServerUrl: string;
+  turnUsername: string;
+  turnCredential: string;
+}
+
 export type EnvSource = Record<string, string | undefined>;
 
 const DEV_FALLBACK_ENV: EnvSource = {
@@ -240,6 +246,29 @@ export function readV2RayEnv(
   }
 
   return {uuid, host, port, wsPath};
+}
+
+/**
+ * Reads Coturn TURN server credentials from the env source.
+ * Returns null when TURN vars are absent (falls back to no-TURN / STUN-only mode).
+ */
+export function readTurnEnv(
+  source: EnvSource = readDefaultEnvSource(),
+): TurnEnvConfig | null {
+  const url = source.TURN_SERVER_URL?.trim();
+  const username = source.TURN_SERVER_USERNAME?.trim();
+  const credential = source.TURN_SERVER_CREDENTIAL?.trim();
+
+  if (!url && !username && !credential) return null;
+
+  if (!url || !username || !credential) {
+    throw new SautiError(
+      'MATRIX_CONFIG_INVALID',
+      'TURN env must define TURN_SERVER_URL, TURN_SERVER_USERNAME, and TURN_SERVER_CREDENTIAL.',
+    );
+  }
+
+  return {turnServerUrl: url, turnUsername: username, turnCredential: credential};
 }
 
 export function readSupabaseEnv(

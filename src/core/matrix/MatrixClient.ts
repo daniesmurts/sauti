@@ -83,6 +83,14 @@ export type MatrixClientEvent =
       roomName?: string;
       topic?: string;
       isDirect?: boolean;
+    }
+  | {
+      /** Emitted for any m.call.* Matrix room event received from a remote peer. */
+      type: 'callEventReceived';
+      roomId: string;
+      senderId: string;
+      eventType: string;
+      content: unknown;
     };
 
 export interface MatrixLoginResult {
@@ -403,6 +411,21 @@ class MatrixClientWrapper {
         return;
       }
 
+      // Dispatch m.call.* events for WebRTC signaling
+      if (typeof eventType === 'string' && eventType.startsWith('m.call.')) {
+        const senderId = eventRecord.getSender?.();
+        if (senderId) {
+          this.emit({
+            type: 'callEventReceived',
+            roomId,
+            senderId,
+            eventType,
+            content: eventRecord.getContent?.() ?? {},
+          });
+        }
+        return;
+      }
+
       if (eventType !== 'm.room.message') {
         return;
       }
@@ -609,6 +632,41 @@ class MatrixClientWrapper {
         error,
       );
     }
+  }
+
+  /**
+   * Sends a raw Matrix room event (used for m.call.* signaling).
+   * The caller is responsible for constructing a valid event type and content.
+   */
+  async sendRoomEvent(roomId: string, type: string, content: object): Promise<void> {
+    try {
+      const client = this.getAuthClient();
+      if (!client.sendEvent) {
+        throw new Error('Matrix SDK client missing sendEvent capability.');
+      }
+      await client.sendEvent(roomId, type as Parameters<typeof client.sendEvent>[1], content);
+    } catch (error) {
+      throw new SautiError(
+        'MATRIX_ROOM_OPERATION_FAILED',
+        `Matrix sendRoomEvent failed for type ${type}.`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Subscribe to incoming m.call.* events from remote peers.
+   * Returns an unsubscribe function.
+   */
+  subscribeCallEvents(
+    handler: (roomId: string, senderId: string, type: string, content: unknown) => void,
+  ): () => void {
+    const wrapper = (event: MatrixClientEvent) => {
+      if (event.type === 'callEventReceived') {
+        handler(event.roomId, event.senderId, event.eventType, event.content);
+      }
+    };
+    return this.subscribe(wrapper);
   }
 
   async listRoomSnapshots(): Promise<MatrixRoomSnapshot[]> {

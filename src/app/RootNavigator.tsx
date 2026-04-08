@@ -5,6 +5,7 @@ import {StyleSheet, Text, View} from 'react-native';
 
 import {MainFlowScreen} from '../modules/main';
 import {SettingsSecurityScreen} from '../modules/settings';
+import {CallLogScreen} from '../modules/calling';
 import {Colors, Spacing, TextPresets} from '../ui/tokens';
 import {useScreenCaptureProtection} from '../core/security/screenCaptureProtection';
 import {
@@ -43,15 +44,7 @@ function PlaceholderTabScreen({
 }
 
 function CallsTabScreen(): React.JSX.Element {
-  useScreenCaptureProtection(true);
-
-  return (
-    <PlaceholderTabScreen
-      title="Calls"
-      detail="Call log and calling controls will be added in Phase 2."
-      testID="tab-calls-screen"
-    />
-  );
+  return <CallLogScreen />;
 }
 
 function ContactsTabScreen(): React.JSX.Element {
