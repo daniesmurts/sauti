@@ -4,7 +4,7 @@ import {TextInput, TouchableOpacity} from 'react-native';
 import renderer, {act} from 'react-test-renderer';
 import {describe, expect, it, jest} from '@jest/globals';
 
-import {OTPVerificationScreen} from '../src/modules/auth/screens';
+import {PhoneOTPVerificationScreen as OTPVerificationScreen} from '../src/modules/auth/screens';
 
 function findButtonByLabel(
   tree: renderer.ReactTestRenderer,
