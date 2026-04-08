@@ -27,6 +27,7 @@
     "matrix-js-sdk": "41.3.0-rc.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "@stripe/stripe-react-native": "^0.38.0",
     "react-native-audio-recorder-player": "^3.5.3",
     "react-native-callkeep": "^4.3.16",
     "react-native-config": "^1.6.1",
