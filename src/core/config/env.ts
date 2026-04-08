@@ -49,6 +49,11 @@ export interface TurnEnvConfig {
   turnCredential: string;
 }
 
+export interface TbankEnvConfig {
+  terminalKey: string;
+  terminalPassword: string;
+}
+
 export type EnvSource = Record<string, string | undefined>;
 
 const DEV_FALLBACK_ENV: EnvSource = {
@@ -60,6 +65,8 @@ const DEV_FALLBACK_ENV: EnvSource = {
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=,BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=',
   SUPABASE_URL: 'https://pcvysozwnegddinktcjd.supabase.co',
   SUPABASE_EMAIL_REDIRECT_URL: 'https://matrix.sauti.ru',
+  TBANK_TERMINAL_KEY: 'TestB-Merchant1',
+  TBANK_TERMINAL_PASSWORD: 'usaAbcDEF',
   SUPABASE_ANON_KEY:
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdnlzb3p3bmVnZGRpbmt0Y2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjA3MTMsImV4cCI6MjA5MDgzNjcxM30.LwBCn6bKgFFFOZTySFtRl78DEw3Hmylov1yQEWhUcDY',
 };
@@ -269,6 +276,20 @@ export function readTurnEnv(
   }
 
   return {turnServerUrl: url, turnUsername: username, turnCredential: credential};
+}
+
+/**
+ * Reads Tbank terminal credentials from the env source.
+ * Set TBANK_TERMINAL_KEY and TBANK_TERMINAL_PASSWORD in your .env file.
+ * Obtain both from your T-Business personal account dashboard.
+ */
+export function readTbankEnv(
+  source: EnvSource = readDefaultEnvSource(),
+): TbankEnvConfig {
+  return {
+    terminalKey: mustReadString(source, 'TBANK_TERMINAL_KEY'),
+    terminalPassword: mustReadString(source, 'TBANK_TERMINAL_PASSWORD'),
+  };
 }
 
 export function readSupabaseEnv(

@@ -14,6 +14,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Button, CardInputForm, Screen} from '../../../ui/components';
 import {Colors, Spacing, TextPresets} from '../../../ui/tokens';
 import {ThreeDsWebView} from './ThreeDsWebView';
+import {readTbankEnv} from '../../../core/config/env';
 import {TbankApiClient} from '../api/tbank/TbankApiClient';
 import {
   TbankPaymentService,
@@ -23,8 +24,6 @@ import {
 } from '../api/tbank/TbankPaymentService';
 
 export interface TbankPaymentScreenProps {
-  terminalKey: string;
-  password: string;
   amountKopecks: number;
   orderId: string;
   description?: string;
@@ -44,8 +43,6 @@ type ScreenPhase =
   | {phase: 'error'; message: string};
 
 export function TbankPaymentScreen({
-  terminalKey,
-  password,
   amountKopecks,
   orderId,
   description,
@@ -57,10 +54,11 @@ export function TbankPaymentScreen({
   const [screenPhase, setPhase] = React.useState<ScreenPhase>({phase: 'form'});
 
   const service = React.useMemo(() => {
-    const client = new TbankApiClient({terminalKey, password});
+    const {terminalKey, terminalPassword} = readTbankEnv();
+    const client = new TbankApiClient({terminalKey, password: terminalPassword});
     const enc = encryptor ?? new PlaintextCardDataEncryptor();
     return new TbankPaymentService(client, enc);
-  }, [terminalKey, password, encryptor]);
+  }, [encryptor]);
 
   const handleResult = React.useCallback(
     (result: TbankPaymentResult) => {
