@@ -4,6 +4,17 @@
  * 'react-native-webrtc'.
  */
 
+export class MediaStreamTrack {
+  readonly id = `mock-track-${Math.random().toString(36).slice(2)}`;
+  readonly kind: 'audio' | 'video';
+  enabled = true;
+  stop = jest.fn();
+
+  constructor(kind: 'audio' | 'video' = 'audio') {
+    this.kind = kind;
+  }
+}
+
 export class MediaStream {
   readonly id = `mock-stream-${Math.random().toString(36).slice(2)}`;
   private tracks: MediaStreamTrack[] = [];
@@ -16,15 +27,17 @@ export class MediaStream {
     return this.tracks;
   }
 
+  getAudioTracks(): MediaStreamTrack[] {
+    return this.tracks.filter(t => t.kind === 'audio');
+  }
+
+  getVideoTracks(): MediaStreamTrack[] {
+    return this.tracks.filter(t => t.kind === 'video');
+  }
+
   toURL(): string {
     return `mock-stream://${this.id}`;
   }
-}
-
-export class MediaStreamTrack {
-  readonly id = `mock-track-${Math.random().toString(36).slice(2)}`;
-  readonly kind = 'audio';
-  stop = jest.fn();
 }
 
 export class RTCPeerConnection {
@@ -106,10 +119,15 @@ export class RTCIceCandidate {
 }
 
 export const mediaDevices = {
-  getUserMedia: jest.fn().mockImplementation(() => {
-    const stream = new MediaStream([new MediaStreamTrack()]);
-    return Promise.resolve(stream);
-  }),
+  getUserMedia: jest.fn().mockImplementation(
+    (constraints?: {audio?: unknown; video?: unknown}) => {
+      const tracks: MediaStreamTrack[] = [];
+      if (constraints?.audio !== false) tracks.push(new MediaStreamTrack('audio'));
+      if (constraints?.video && constraints.video !== false) tracks.push(new MediaStreamTrack('video'));
+      if (tracks.length === 0) tracks.push(new MediaStreamTrack('audio'));
+      return Promise.resolve(new MediaStream(tracks));
+    },
+  ),
 };
 
 // RTCView — renders nothing in tests

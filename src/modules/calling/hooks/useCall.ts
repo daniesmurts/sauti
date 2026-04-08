@@ -19,7 +19,7 @@ export function useCall(manager: CallManager): {
   rejectCall(): void;
   hangUp(): void;
 } {
-  const [callState, setCallState] = React.useState<CallState>(manager.getState);
+  const [callState, setCallState] = React.useState<CallState>(() => manager.getState());
   const [localStream, setLocalStream] = React.useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = React.useState<MediaStream | null>(null);
 
