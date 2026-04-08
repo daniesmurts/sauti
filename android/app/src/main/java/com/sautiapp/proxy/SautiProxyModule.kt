@@ -8,6 +8,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ActivityEventListener
 
 class SautiProxyModule(private val context: ReactApplicationContext) :
@@ -38,8 +39,17 @@ class SautiProxyModule(private val context: ReactApplicationContext) :
     promise.resolve(SautiVpnService.isRunning)
   }
 
+  /**
+   * Starts the VPN service.
+   *
+   * [config] is an optional ReadableMap with V2Ray tunnel parameters:
+   *   { uuid: string, host: string, port: number, wsPath: string }
+   *
+   * If [config] is null or missing required fields the service will reject
+   * immediately (V2Ray config is mandatory for a functional tunnel).
+   */
   @ReactMethod
-  fun enable(promise: Promise) {
+  fun enable(config: ReadableMap?, promise: Promise) {
     val permissionIntent = VpnService.prepare(context)
     if (permissionIntent != null) {
       SautiVpnService.markPermissionRequired(
@@ -54,6 +64,12 @@ class SautiProxyModule(private val context: ReactApplicationContext) :
 
     val serviceIntent = Intent(context, SautiVpnService::class.java).apply {
       action = SautiVpnService.ACTION_START
+      config?.let { cfg ->
+        cfg.getString("uuid")?.let { putExtra(SautiVpnService.EXTRA_UUID, it) }
+        cfg.getString("host")?.let { putExtra(SautiVpnService.EXTRA_HOST, it) }
+        if (cfg.hasKey("port")) putExtra(SautiVpnService.EXTRA_PORT, cfg.getInt("port"))
+        cfg.getString("wsPath")?.let { putExtra(SautiVpnService.EXTRA_WS_PATH, it) }
+      }
     }
 
     try {
@@ -150,9 +166,7 @@ class SautiProxyModule(private val context: ReactApplicationContext) :
     resultCode: Int,
     data: Intent?,
   ) {
-    if (requestCode != VPN_PERMISSION_REQUEST_CODE) {
-      return
-    }
+    if (requestCode != VPN_PERMISSION_REQUEST_CODE) return
 
     val promise = vpnPermissionPromise ?: return
     vpnPermissionPromise = null

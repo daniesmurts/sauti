@@ -36,6 +36,13 @@ export interface SupabaseEnvConfig {
   supabaseEmailRedirectUrl?: string;
 }
 
+export interface V2RayEnvConfig {
+  uuid: string;
+  host: string;
+  port: number;
+  wsPath: string;
+}
+
 export type EnvSource = Record<string, string | undefined>;
 
 const DEV_FALLBACK_ENV: EnvSource = {
@@ -196,6 +203,43 @@ export function readProxyEnv(
     originHost,
     frontingPublicKeyHashes: parseFrontingPinHashes(frontingPublicKeyHashes),
   };
+}
+
+/**
+ * Reads V2Ray tunnel config from the env source.  Returns null when the V2Ray
+ * variables are absent (e.g. in test builds or when the tunnel is not needed).
+ * Throws when required fields are partially set.
+ */
+export function readV2RayEnv(
+  source: EnvSource = readDefaultEnvSource(),
+): V2RayEnvConfig | null {
+  const uuid = source.V2RAY_UUID?.trim();
+  const host = source.V2RAY_HOST?.trim();
+  const wsPath = source.V2RAY_WS_PATH?.trim();
+  const portRaw = source.V2RAY_PORT?.trim();
+
+  // All four absent → V2Ray not configured, return null gracefully
+  if (!uuid && !host && !wsPath && !portRaw) {
+    return null;
+  }
+
+  if (!uuid || !host || !wsPath) {
+    throw new SautiError(
+      'MATRIX_CONFIG_INVALID',
+      'V2Ray env must define V2RAY_UUID, V2RAY_HOST, and V2RAY_WS_PATH.',
+    );
+  }
+
+  if (!isLikelyDomain(host)) {
+    throw new SautiError('MATRIX_CONFIG_INVALID', 'Invalid env value for key: V2RAY_HOST');
+  }
+
+  const port = portRaw ? parseInt(portRaw, 10) : 443;
+  if (Number.isNaN(port) || port < 1 || port > 65535) {
+    throw new SautiError('MATRIX_CONFIG_INVALID', 'Invalid env value for key: V2RAY_PORT');
+  }
+
+  return {uuid, host, port, wsPath};
 }
 
 export function readSupabaseEnv(

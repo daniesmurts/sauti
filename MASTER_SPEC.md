@@ -1,4 +1,4 @@
-# AfriLink — Master Build Specification
+# Sauti — Master Build Specification
 > Censorship-resistant messaging & VoIP for African students in Russia
 > Version 1.0 | React Native (bare workflow) + TypeScript
 
@@ -24,7 +24,7 @@ For security-sensitive code, always reference section 8 before starting.
 
 ## 1. Project mission & context
 
-AfriLink is a censorship-resistant, low-bandwidth messaging and VoIP calling application
+Sauti is a censorship-resistant, low-bandwidth messaging and VoIP calling application
 built specifically for African students studying in Russia, and their families back home.
 
 **The core problem:** WhatsApp, Telegram, and most Western communication apps are
@@ -161,7 +161,7 @@ Do not substitute these without a documented decision and team sign-off.
 ## 4. Repository structure
 
 ```
-afrilink/
+Sauti/
 ├── src/
 │   ├── app/                    # Root navigation, providers, app entry
 │   │   ├── App.tsx
@@ -214,7 +214,7 @@ afrilink/
 │
 ├── android/                    # Android native project
 │   └── app/src/main/java/
-│       └── com/afrilink/
+│       └── com/Sauti/
 │           ├── VpnService.kt   # V2Ray tunnel service
 │           └── MainActivity.kt
 │
@@ -323,7 +323,7 @@ global.TextDecoder = TextDecoder;
 
 **Key rules:**
 - Never import `matrix-js-sdk` outside `src/core/matrix/`. All Matrix access goes through the wrapper.
-- All errors from Matrix must be caught and re-thrown as typed `AfriLinkError` objects.
+- All errors from Matrix must be caught and re-thrown as typed `SautiError` objects.
 - Rooms = conversations. Do not use Matrix spaces or communities in v1.
 
 **WatermelonDB models for messages:**
@@ -785,7 +785,7 @@ Goal: Two people can exchange encrypted text messages, even from Russia.
 Start every Claude Code session with:
 
 ```
-You are helping build AfriLink, a censorship-resistant messaging app.
+You are helping build Sauti, a censorship-resistant messaging app.
 Key constraints:
 - React Native bare workflow, TypeScript strict mode
 - All Matrix access through src/core/matrix/ wrapper only
@@ -812,15 +812,15 @@ Do not import from matrix-js-sdk directly.
 ```
 Create the [ModuleName] module in src/core/[module]/.
 It must export a singleton instance.
-All errors must be typed AfriLinkError from src/core/errors.ts.
+All errors must be typed SautiError from src/core/errors.ts.
 Write a Jest unit test alongside the implementation.
 ```
 
 **For native module work:**
 ```
 This requires native Android/iOS code.
-Android: Kotlin in android/app/src/main/java/com/afrilink/
-iOS: Swift in ios/AfriLink/
+Android: Kotlin in android/app/src/main/java/com/Sauti/
+iOS: Swift in ios/Sauti/
 The JS interface lives in src/core/proxy/ProxyModule.ts.
 Use the NativeModule bridge pattern, not TurboModules (for now).
 ```

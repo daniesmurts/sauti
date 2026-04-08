@@ -1,5 +1,5 @@
 import {ProxyFetchFn, ProxyHttpsAgent, ProxyManager, ProxyStatus} from './ProxyManager';
-import {NativeProxyStatus, getNativeProxyModule} from './NativeProxyModule';
+import {NativeProxyStatus, V2RayNativeConfig, getNativeProxyModule} from './NativeProxyModule';
 
 export interface PlatformProxyBridge {
   init(): Promise<void>;
@@ -63,8 +63,17 @@ function toProxyStatus(status: NativeProxyStatus): ProxyStatus {
   }
 }
 
+/**
+ * Android VPN proxy manager.
+ *
+ * Accepts an optional [v2rayConfig] which is forwarded as Intent extras to
+ * SautiVpnService when the tunnel is enabled.  Without it the service will
+ * reject immediately.
+ */
 export class AndroidVpnProxyManager implements ProxyManager {
   private status: ProxyStatus = 'disabled';
+
+  constructor(private readonly v2rayConfig: V2RayNativeConfig | null = null) {}
 
   async init(): Promise<void> {
     const module = getNativeProxyModule();
@@ -99,12 +108,12 @@ export class AndroidVpnProxyManager implements ProxyManager {
     }
 
     try {
-      await module.enable();
+      await module.enable(this.v2rayConfig);
     } catch (error: unknown) {
       const code = (error as {code?: string}).code;
       if (code === 'PROXY_PERMISSION_REQUIRED') {
         await module.requestVpnPermission();
-        await module.enable();
+        await module.enable(this.v2rayConfig);
       } else {
         throw error;
       }

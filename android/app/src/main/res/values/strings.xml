@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">SautiApp</string>
+    <string name="vpn_notification_channel_name">Sauti VPN</string>
+    <string name="vpn_notification_channel_desc">Shows while the Sauti secure tunnel is active</string>
+    <string name="vpn_notification_title">Sauti VPN Active</string>
+    <string name="vpn_notification_text">Traffic is routed through the secure tunnel</string>
+    <string name="vpn_notification_action_disconnect">Disconnect</string>
 </resources>
