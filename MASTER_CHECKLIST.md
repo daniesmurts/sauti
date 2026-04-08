@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (80 suites, 358 tests)
+Status basis: current implementation in SautiApp plus passing test suite (81 suites, 370 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -163,11 +163,11 @@ Acceptance criteria:
 - [x] Accept/decline actions wired to signaling.
 
 ### 5) CallScreen with adaptive quality
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Full call controls implemented.
-- [ ] Network quality indicator implemented.
-- [ ] Auto-suggest downgrade to voice on poor stats.
+- [x] Full call controls implemented.
+- [x] Network quality indicator implemented.
+- [x] Auto-suggest downgrade to voice on poor stats.
 
 ### 6) Voice notes in chat
 Tag: TODO
