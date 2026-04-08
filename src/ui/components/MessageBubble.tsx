@@ -3,15 +3,22 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Colors} from '../tokens/colors';
 import {Radius, Spacing} from '../tokens/spacing';
 import {FontSize} from '../tokens/typography';
+import {VoiceNotePlayer} from './VoiceNotePlayer';
 
 export type MessageDirection = 'incoming' | 'outgoing';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
+
+export interface VoiceNoteContent {
+  uri: string;
+  durationMs: number;
+}
 
 export interface MessageBubbleProps {
   text: string;
   direction: MessageDirection;
   timestamp: string;
   status?: MessageStatus;
+  voiceNote?: VoiceNoteContent;
   testID?: string;
 }
 
@@ -27,6 +34,7 @@ export function MessageBubble({
   direction,
   timestamp,
   status,
+  voiceNote,
   testID,
 }: MessageBubbleProps): React.JSX.Element {
   const isOutgoing = direction === 'outgoing';
@@ -36,9 +44,17 @@ export function MessageBubble({
       testID={testID}
       style={[styles.wrapper, isOutgoing ? styles.wrapperOut : styles.wrapperIn]}>
       <View style={[styles.bubble, isOutgoing ? styles.bubbleOut : styles.bubbleIn]}>
-        <Text style={[styles.text, isOutgoing ? styles.textOut : styles.textIn]}>
-          {text}
-        </Text>
+        {voiceNote ? (
+          <VoiceNotePlayer
+            uri={voiceNote.uri}
+            durationMs={voiceNote.durationMs}
+            direction={direction}
+          />
+        ) : (
+          <Text style={[styles.text, isOutgoing ? styles.textOut : styles.textIn]}>
+            {text}
+          </Text>
+        )}
 
         <View style={styles.meta}>
           <Text style={[styles.timestamp, isOutgoing ? styles.timestampOut : styles.timestampIn]}>

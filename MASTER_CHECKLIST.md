@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (81 suites, 370 tests)
+Status basis: current implementation in SautiApp plus passing test suite (82 suites, 384 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -170,11 +170,11 @@ Acceptance criteria:
 - [x] Auto-suggest downgrade to voice on poor stats.
 
 ### 6) Voice notes in chat
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Hold-to-record and slide-to-cancel interactions implemented.
-- [ ] Encoded output and upload flow implemented.
-- [ ] Playback bubble UI implemented.
+- [x] Hold-to-record and slide-to-cancel interactions implemented.
+- [x] Encoded output and upload flow implemented.
+- [x] Playback bubble UI implemented.
 
 ### 7) Image send/receive with compression
 Tag: TODO

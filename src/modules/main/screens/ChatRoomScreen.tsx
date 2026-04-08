@@ -2,8 +2,13 @@ import React from 'react';
 import {FlatList, StyleSheet, Text, TextInput, View} from 'react-native';
 
 import {useScreenCaptureProtection} from '../../../core/security/screenCaptureProtection';
-import {Avatar, Button, MessageBubble, Screen} from '../../../ui/components';
+import {Avatar, Button, MessageBubble, Screen, VoiceNoteRecordButton} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
+
+export interface VoiceNoteAttachment {
+  uri: string;
+  durationMs: number;
+}
 
 export interface ChatMessage {
   id: string;
@@ -11,6 +16,7 @@ export interface ChatMessage {
   direction: 'incoming' | 'outgoing';
   timestampLabel: string;
   status?: 'sending' | 'sent' | 'delivered' | 'read';
+  voiceNote?: VoiceNoteAttachment;
 }
 
 export interface ChatRoom {
@@ -27,6 +33,7 @@ export interface ChatRoomScreenProps {
   onBack(): void;
   onDraftChange(value: string): void;
   onSend(): void;
+  onSendVoiceNote?(filePath: string, durationMs: number): void;
 }
 
 export function ChatRoomScreen({
@@ -37,6 +44,7 @@ export function ChatRoomScreen({
   onBack,
   onDraftChange,
   onSend,
+  onSendVoiceNote,
 }: ChatRoomScreenProps): React.JSX.Element {
   useScreenCaptureProtection(true);
 
@@ -63,6 +71,7 @@ export function ChatRoomScreen({
             direction={item.direction}
             timestamp={item.timestampLabel}
             status={item.status}
+            voiceNote={item.voiceNote}
           />
         )}
       />
@@ -82,12 +91,13 @@ export function ChatRoomScreen({
             multiline
             maxLength={1000}
           />
-          <Button
-            label="Send"
-            size="sm"
-            onPress={onSend}
-            disabled={draftMessage.trim().length === 0}
-          />
+          {draftMessage.trim().length > 0 ? (
+            <Button label="Send" size="sm" onPress={onSend} />
+          ) : onSendVoiceNote ? (
+            <VoiceNoteRecordButton onSend={onSendVoiceNote} />
+          ) : (
+            <Button label="Send" size="sm" onPress={onSend} disabled />
+          )}
         </View>
       </View>
     </Screen>
