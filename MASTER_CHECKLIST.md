@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (83 suites, 396 tests)
+Status basis: current implementation in SautiApp plus passing test suite (84 suites, 423 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -196,19 +196,13 @@ Acceptance criteria:
 
 ## Phase 3 - Subscriptions and Growth
 
-### 1) Stripe payment integration
-Tag: TODO
+### 1) Tbank online payments integration (PCI DSS)
+Tag: DONE
 Acceptance criteria:
-- [ ] Payment sheet integrated.
-- [ ] Subscription activation webhook path validated.
-- [ ] Error/retry UX completed.
-
-### 2) YooMoney / CloudPayments integration
-Tag: TODO
-Acceptance criteria:
-- [ ] WebView payment flow implemented.
-- [ ] Backend verification endpoint integrated.
-- [ ] Renewal/cancel path handled.
+- [x] Native card form with RSA-encrypted card data implemented.
+- [x] Full Init → Check3DSVersion → FinishAuthorize → 3DS WebView → GetState flow implemented.
+- [x] Tbank notification webhook verified and subscription activation path validated.
+- [x] Error/retry UX completed.
 
 ### 3) Family plan logic (invite contacts)
 Tag: TODO

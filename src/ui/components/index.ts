@@ -1,5 +1,6 @@
 export * from './Avatar';
 export * from './Button';
+export * from './CardInputForm';
 export * from './Input';
 export * from './InlineImage';
 export * from './MessageBubble';
