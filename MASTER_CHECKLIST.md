@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (84 suites, 414 tests)
+Status basis: current implementation in SautiApp plus passing test suite (83 suites, 396 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -197,13 +197,13 @@ Acceptance criteria:
 ## Phase 3 - Subscriptions and Growth
 
 ### 1) Stripe payment integration
-Tag: DONE
+Tag: TODO
 Acceptance criteria:
-- [x] Payment sheet integrated.
-- [x] Subscription activation webhook path validated.
-- [x] Error/retry UX completed.
+- [ ] Payment sheet integrated.
+- [ ] Subscription activation webhook path validated.
+- [ ] Error/retry UX completed.
 
-### 2) Tbank online payments integration
+### 2) YooMoney / CloudPayments integration
 Tag: TODO
 Acceptance criteria:
 - [ ] WebView payment flow implemented.
