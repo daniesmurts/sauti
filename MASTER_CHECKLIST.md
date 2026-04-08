@@ -1,8 +1,8 @@
 # Sauti Master Checklist
 
 Source of truth: masterSpec.md
-Last updated: 2026-04-06
-Status basis: current implementation in SautiApp plus passing test suite (73 suites, 277 tests)
+Last updated: 2026-04-08
+Status basis: current implementation in SautiApp plus passing test suite (81 suites, 370 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -132,19 +132,19 @@ Acceptance criteria:
 ## Phase 2 - Voice and Video Calling
 
 ### 1) react-native-webrtc integration
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Dependency installed and initialized.
-- [ ] RN platform setup complete for Android/iOS.
-- [ ] Basic peer connection smoke test passes.
+- [x] Dependency installed and initialized.
+- [x] RN platform setup complete for Android/iOS.
+- [x] Basic peer connection smoke test passes.
 
 ### 2) CallManager with Matrix signaling
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Call state machine implemented.
-- [ ] m.call signaling integrated via Matrix events.
-- [ ] TURN-first ICE policy enforced.
-- [ ] Unit tests for call state transitions.
+- [x] Call state machine implemented.
+- [x] m.call signaling integrated via Matrix events.
+- [x] TURN-first ICE policy enforced.
+- [x] Unit tests for call state transitions.
 
 ### 3) Coturn TURN server (TCP:443)
 Tag: BLOCKED
@@ -156,18 +156,18 @@ Acceptance criteria:
 - [ ] Connectivity tests documented for Russia-side constraints.
 
 ### 4) IncomingCall screen with react-native-callkeep
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Incoming call UI implemented.
-- [ ] Lock-screen presentation works on Android/iOS.
-- [ ] Accept/decline actions wired to signaling.
+- [x] Incoming call UI implemented.
+- [x] Lock-screen presentation works on Android/iOS.
+- [x] Accept/decline actions wired to signaling.
 
 ### 5) CallScreen with adaptive quality
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Full call controls implemented.
-- [ ] Network quality indicator implemented.
-- [ ] Auto-suggest downgrade to voice on poor stats.
+- [x] Full call controls implemented.
+- [x] Network quality indicator implemented.
+- [x] Auto-suggest downgrade to voice on poor stats.
 
 ### 6) Voice notes in chat
 Tag: TODO
@@ -258,7 +258,7 @@ Tag: PARTIAL
 Acceptance criteria:
 - [x] SecureStore used for credentials and sensitive caches.
 - [x] Matrix wrapper and typed error paths established.
-- [ ] Screenshot prevention enabled for chat and call screens.
+- [x] Screenshot prevention enabled for chat and call screens.
 - [ ] TLS pinning implemented for fronted transport.
 - [ ] Device/session management UX completed.
 

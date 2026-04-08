@@ -9,9 +9,18 @@ export interface NativeProxyDiagnostics {
   lastError: string | null;
 }
 
+/** V2Ray tunnel parameters forwarded to the native VPN service. */
+export interface V2RayNativeConfig {
+  uuid: string;
+  host: string;
+  port: number;
+  wsPath: string;
+}
+
 export interface NativeProxyModule {
   init(): Promise<boolean>;
-  enable(): Promise<boolean>;
+  /** config is required for the Android VPN tunnel; null starts but will fail fast. */
+  enable(config: V2RayNativeConfig | null): Promise<boolean>;
   disable(): Promise<boolean>;
   isEnabled(): Promise<boolean>;
   getStatus(): Promise<NativeProxyStatus>;

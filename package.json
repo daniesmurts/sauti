@@ -7,7 +7,8 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "node scripts/patch-react-native-config.js"
   },
   "dependencies": {
     "@nozbe/watermelondb": "^0.28.0",
@@ -26,7 +27,8 @@
     "matrix-js-sdk": "41.3.0-rc.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
-    "react-native-config": "^1.4.6",
+    "react-native-callkeep": "^4.3.16",
+    "react-native-config": "^1.6.1",
     "react-native-gesture-handler": "^2.20.2",
     "react-native-get-random-values": "^1.11.0",
     "react-native-image-picker": "^8.2.1",
@@ -38,6 +40,7 @@
     "react-native-ssl-public-key-pinning": "^1.2.6",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-vector-icons": "^10.3.0",
+    "react-native-webrtc": "^124.0.7",
     "text-encoding": "^0.7.0",
     "zustand": "^4.5.7"
   },
