@@ -1,8 +1,8 @@
 # Sauti Master Checklist
 
 Source of truth: masterSpec.md
-Last updated: 2026-04-08
-Status basis: current implementation in SautiApp plus passing test suite (84 suites, 423 tests)
+Last updated: 2026-04-09
+Status basis: current implementation in SautiApp plus passing test suite (85 suites, 445 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -205,11 +205,11 @@ Acceptance criteria:
 - [x] Error/retry UX completed.
 
 ### 3) Family plan logic (invite contacts)
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Invite and entitlement model implemented.
-- [ ] Access checks applied consistently.
-- [ ] Tests cover payer/invitee scenarios.
+- [x] Invite and entitlement model implemented.
+- [x] Access checks applied consistently.
+- [x] Tests cover payer/invitee scenarios.
 
 ### 4) Subscription gate in UI
 Tag: TODO
