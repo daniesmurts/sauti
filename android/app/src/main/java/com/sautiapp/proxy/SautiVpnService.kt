@@ -6,7 +6,6 @@ import android.net.VpnService
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.system.ErrnoException
-import android.system.Os
 import android.system.OsConstants
 import android.util.Log
 import java.io.File
@@ -188,14 +187,18 @@ class SautiVpnService : VpnService() {
     }
     Log.i(TAG, "v2ray SOCKS5 port ${config.socksPort} ready.")
 
-    // 5. Clear FD_CLOEXEC on the TUN fd so the tun2socks subprocess can inherit it
+    // 5. Clear FD_CLOEXEC on the TUN fd so the tun2socks subprocess can inherit it.
+    //    Os.fcntl is not in the public Android SDK API; we invoke it via reflection.
     val rawFd = tunFd.fd
     try {
       val javaFd = tunFd.fileDescriptor
-      val flags = Os.fcntl(javaFd, OsConstants.F_GETFD, 0)
-      Os.fcntl(javaFd, OsConstants.F_SETFD, flags and OsConstants.FD_CLOEXEC.inv())
+      @Suppress("DiscouragedPrivateApi")
+      val fcntlMethod = android.system.Os::class.java
+        .getMethod("fcntl", java.io.FileDescriptor::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+      val flags = (fcntlMethod.invoke(null, javaFd, OsConstants.F_GETFD, 0) as Int)
+      fcntlMethod.invoke(null, javaFd, OsConstants.F_SETFD, flags and OsConstants.FD_CLOEXEC.inv())
       Log.d(TAG, "Cleared FD_CLOEXEC on TUN fd $rawFd")
-    } catch (e: ErrnoException) {
+    } catch (e: Exception) {
       // Non-fatal — subprocess may still inherit the fd depending on Android version
       Log.w(TAG, "Could not clear FD_CLOEXEC on TUN fd: ${e.message}")
     }

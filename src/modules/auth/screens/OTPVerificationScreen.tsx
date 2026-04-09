@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 import {Button, Screen} from '../../../ui/components';
@@ -50,6 +50,21 @@ export function OtpVerificationScreen({
   }, []);
 
   const isLoading = status === 'loading';
+
+  // ── Dev bypass ────────────────────────────────────────────────────────────
+  // In __DEV__ builds only: paste the raw OTP from the Supabase Auth logs
+  // directly without waiting for the email to arrive.
+  const [devCode, setDevCode] = React.useState('');
+  const handleDevBypass = React.useCallback(async () => {
+    if (!devCode.trim()) return;
+    setCode(devCode.trim());
+    await verifyOtp(devCode.trim());
+    const snapshot = useAuthStore.getState();
+    if (snapshot.status === 'authenticated' || snapshot.status === 'otp_sent') {
+      onVerified(snapshot.hasTotpEnabled);
+    }
+  }, [devCode, onVerified, verifyOtp]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const submitCode = React.useCallback(async () => {
     await verifyOtp(code);

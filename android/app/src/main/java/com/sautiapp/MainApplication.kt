@@ -13,8 +13,6 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.sautiapp.proxy.SautiProxyPackage
 
-import com.reactnativeconfig.ReactNativeConfigPackage
-
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost =
@@ -22,7 +20,6 @@ class MainApplication : Application(), ReactApplication {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
               add(SautiProxyPackage())
-              add(ReactNativeConfigPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

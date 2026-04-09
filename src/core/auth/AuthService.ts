@@ -236,13 +236,30 @@ export class AuthService {
     const env = readSupabaseEnv();
     this.supabaseEmailRedirectUrl =
       env.supabaseEmailRedirectUrl ?? 'https://matrix.sauti.ru';
+
+    // secureStore must be initialised BEFORE createClient so we can pass it
+    // as the storage adapter.  Without an explicit adapter, Supabase 2.x falls
+    // back to window.localStorage which does not exist in React Native and
+    // causes verifyOtp / getSession to hang indefinitely.
+    this.secureStore = storage.secureStore ?? getDefaultSecureStore();
+    const secureStore = this.secureStore;
+
     this.supabaseClient = createClient(env.supabaseUrl, env.supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        // Required for React Native: prevents Supabase from parsing OAuth
+        // redirect URLs out of window.location (which doesn't exist in RN).
+        detectSessionInUrl: false,
+        // Use the same storage backend that AuthService uses so session tokens
+        // are stored in AsyncStorage rather than the non-existent localStorage.
+        storage: {
+          getItem: (key: string) => secureStore.getItemAsync(key),
+          setItem: (key: string, value: string) => secureStore.setItemAsync(key, value),
+          removeItem: (key: string) => secureStore.deleteItemAsync(key),
+        },
       },
     });
-    this.secureStore = storage.secureStore ?? getDefaultSecureStore();
   }
 
   async signUpWithEmail(email: string): Promise<void> {
