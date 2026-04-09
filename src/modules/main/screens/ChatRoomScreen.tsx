@@ -61,18 +61,21 @@ export function ChatRoomScreen({
   useScreenCaptureProtection(true);
 
   return (
-    <Screen>
+    <Screen dark>
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Button label="Back" variant="ghost" size="sm" onPress={onBack} />
         <Avatar name={room.displayName} size="sm" />
         <View style={styles.headerBody}>
           <Text style={styles.roomName}>{room.displayName}</Text>
-          <Text style={styles.roomStatus}>
-            {room.isOnline ? 'Online' : 'Offline'}
-          </Text>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusDot, room.isOnline && styles.statusDotOnline]} />
+            <Text style={styles.roomStatus}>{room.isOnline ? 'Online' : 'Offline'}</Text>
+          </View>
         </View>
       </View>
 
+      {/* ── Messages ── */}
       <FlatList
         data={messages}
         keyExtractor={item => item.id}
@@ -89,6 +92,7 @@ export function ChatRoomScreen({
         )}
       />
 
+      {/* ── Input / Gate ── */}
       {subscriptionRequired ? (
         <View style={styles.subscriptionGateBanner} testID="subscription-gate-banner">
           <Text style={styles.subscriptionGateText}>
@@ -123,8 +127,8 @@ export function ChatRoomScreen({
               value={draftMessage}
               onChangeText={onDraftChange}
               style={styles.input}
-              placeholder="Write a message"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholder="Write a message..."
+              placeholderTextColor={Colors.neutral[600]}
               multiline
               maxLength={1000}
             />
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
+    borderBottomColor: Colors.neutral[800],
   },
   headerBody: {
     gap: Spacing.xxs,
@@ -159,7 +163,21 @@ const styles = StyleSheet.create({
   roomName: {
     ...TextPresets.body,
     fontWeight: '600',
-    color: Colors.neutral[900],
+    color: Colors.neutral[0],
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.neutral[600],
+  },
+  statusDotOnline: {
+    backgroundColor: Colors.semantic.success,
   },
   roomStatus: {
     ...TextPresets.label,
@@ -171,10 +189,11 @@ const styles = StyleSheet.create({
   },
   inputBar: {
     borderTopWidth: 1,
-    borderTopColor: Colors.neutral[200],
+    borderTopColor: Colors.neutral[800],
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.base,
     gap: Spacing.xs,
+    backgroundColor: Colors.neutral[900],
   },
   inputRow: {
     flexDirection: 'row',
@@ -197,15 +216,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    borderRadius: Radius.lg,
+    borderColor: Colors.neutral[700],
+    borderRadius: Radius.xl,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    color: Colors.neutral[900],
-    backgroundColor: Colors.neutral[0],
+    color: Colors.neutral[50],
+    backgroundColor: Colors.neutral[800],
     ...TextPresets.body,
   },
   subscriptionGateBanner: {
@@ -213,8 +232,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: Colors.neutral[200],
-    backgroundColor: Colors.semantic.infoBg,
+    borderTopColor: Colors.neutral[800],
+    backgroundColor: Colors.neutral[800],
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
@@ -222,11 +241,11 @@ const styles = StyleSheet.create({
   subscriptionGateText: {
     ...TextPresets.caption,
     flex: 1,
-    color: Colors.neutral[700],
+    color: Colors.neutral[300],
   },
   subscriptionGateButton: {
     backgroundColor: Colors.brand[500],
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.xs,
   },

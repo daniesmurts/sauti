@@ -22,6 +22,11 @@ export interface ScreenProps {
    * keyboard lifts the content on iOS/Android. Default: false.
    */
   avoidKeyboard?: boolean;
+  /**
+   * Use the dark warm-brown background for main app screens
+   * (chat list, chat room, etc.). Default: false (cream/light).
+   */
+  dark?: boolean;
   style?: ViewStyle;
   testID?: string;
 }
@@ -30,6 +35,7 @@ export function Screen({
   children,
   scrollable = false,
   avoidKeyboard = false,
+  dark = false,
   style,
   testID,
 }: ScreenProps): React.JSX.Element {
@@ -57,7 +63,7 @@ export function Screen({
   return (
     <SafeAreaView
       testID={testID}
-      style={[styles.root, style]}>
+      style={[styles.root, dark && styles.rootDark, style]}>
       {body}
     </SafeAreaView>
   );
@@ -68,6 +74,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.neutral[50],
     paddingHorizontal: Spacing.base,
+  },
+  rootDark: {
+    backgroundColor: Colors.neutral[900],
   },
   flex: {
     flex: 1,

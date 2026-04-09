@@ -29,7 +29,7 @@ describe('PhoneEntryScreen', () => {
       });
 
       act(() => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
       });
 
       expect(onContinue).toHaveBeenCalledTimes(1);
@@ -51,7 +51,7 @@ describe('PhoneEntryScreen', () => {
       });
 
       act(() => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
       });
 
       const errorNodes = tree.root.findAll(

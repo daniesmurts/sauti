@@ -660,7 +660,7 @@ describe('ConversationListScreen', () => {
       const helperVisible = tree.root.findAll(
         node =>
           node.type === 'Text' &&
-          node.props.children === 'Tap Confirm again to clear all recent targets.',
+          node.props.children === 'Tap Confirm again to clear.',
       );
       expect(helperVisible.length).toBeGreaterThan(0);
 

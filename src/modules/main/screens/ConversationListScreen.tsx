@@ -35,20 +35,29 @@ export interface ConversationListScreenProps {
   onOpenNewConversation?(): void;
 }
 
-function renderProxyStatusLabel(
+function renderProxyLabel(
   proxyStatus: NonNullable<ConversationListScreenProps['proxyStatus']>,
 ): string {
   switch (proxyStatus) {
-    case 'connected':
-      return 'Proxy connected';
-    case 'connecting':
-      return 'Proxy connecting';
-    case 'failed':
-      return 'Proxy failed';
-    case 'disabled':
-    default:
-      return 'Proxy disabled';
+    case 'connected':  return 'Proxy connected';
+    case 'connecting': return 'Proxy connecting';
+    case 'failed':     return 'Proxy failed';
+    default:           return 'Proxy disabled';
   }
+}
+
+function proxyStatusColor(
+  proxyStatus: NonNullable<ConversationListScreenProps['proxyStatus']>,
+): string {
+  if (proxyStatus === 'connected') return Colors.semantic.success;
+  if (proxyStatus === 'connecting') return Colors.semantic.warning;
+  return Colors.semantic.error;
+}
+
+function networkStatusColor(
+  networkState: NonNullable<ConversationListScreenProps['networkState']>,
+): string {
+  return networkState === 'connected' ? Colors.semantic.success : Colors.semantic.error;
 }
 
 type StartTargetHint = {
@@ -74,24 +83,15 @@ function deriveStartTargetHint(target: string): StartTargetHint {
   }
 
   if (normalized.startsWith('@')) {
-    return {
-      text: 'Direct chat target detected. Use full Matrix user ID format.',
-      suggestions: [],
-    };
+    return {text: 'Direct chat target detected. Use full Matrix user ID format.', suggestions: []};
   }
 
   if (normalized.startsWith('#')) {
-    return {
-      text: 'Room alias detected. This will join the alias if available.',
-      suggestions: [],
-    };
+    return {text: 'Room alias detected. This will join the alias if available.', suggestions: []};
   }
 
   if (normalized.startsWith('!')) {
-    return {
-      text: 'Room ID detected. This will join an existing room by ID.',
-      suggestions: [],
-    };
+    return {text: 'Room ID detected. This will join an existing room by ID.', suggestions: []};
   }
 
   if (normalized.includes(':')) {
@@ -108,10 +108,7 @@ function deriveStartTargetHint(target: string): StartTargetHint {
 }
 
 function renderUnreadBadge(unreadCount: number): React.JSX.Element | null {
-  if (unreadCount <= 0) {
-    return null;
-  }
-
+  if (unreadCount <= 0) return null;
   return (
     <View style={styles.unreadBadge}>
       <Text style={styles.unreadText}>{unreadCount}</Text>
@@ -125,21 +122,12 @@ function findSearchableConversations(
 ): SearchableConversationResult[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
-    return conversations.slice(0, 5).map(conversation => ({
-      roomId: conversation.roomId,
-      displayName: conversation.displayName,
-    }));
+    return conversations.slice(0, 5).map(c => ({roomId: c.roomId, displayName: c.displayName}));
   }
-
   return conversations
-    .filter(conversation =>
-      conversation.displayName.toLowerCase().includes(normalized),
-    )
+    .filter(c => c.displayName.toLowerCase().includes(normalized))
     .slice(0, 5)
-    .map(conversation => ({
-      roomId: conversation.roomId,
-      displayName: conversation.displayName,
-    }));
+    .map(c => ({roomId: c.roomId, displayName: c.displayName}));
 }
 
 type FilterTabType = 'all' | 'contacts' | 'finance' | 'unknown';
@@ -179,33 +167,18 @@ export function ConversationListScreen({
   const [selectedFilter, setSelectedFilter] = React.useState<FilterTabType>('all');
 
   const hint = React.useMemo(() => deriveStartTargetHint(target), [target]);
-  
+
   const visibleConversations = React.useMemo(
-    () => conversations.filter(conversation => !archivedRoomIds.includes(conversation.roomId)),
+    () => conversations.filter(c => !archivedRoomIds.includes(c.roomId)),
     [archivedRoomIds, conversations],
   );
 
   const filteredConversations = React.useMemo(() => {
     let filtered = visibleConversations;
-
-    // Filter by search query
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter(conversation =>
-        conversation.displayName.toLowerCase().includes(lowerQuery),
-      );
+      filtered = filtered.filter(c => c.displayName.toLowerCase().includes(lowerQuery));
     }
-
-    // Filter by category (for now, all categories show all conversations)
-    // This can be extended in the future when conversations have category metadata
-    if (selectedFilter === 'contacts') {
-      // Could filter to direct messages only in future
-    } else if (selectedFilter === 'finance') {
-      // Could filter to finance-related rooms in future
-    } else if (selectedFilter === 'unknown') {
-      // Could filter to uncategorized conversations in future
-    }
-
     return filtered;
   }, [visibleConversations, searchQuery, selectedFilter]);
 
@@ -225,9 +198,7 @@ export function ConversationListScreen({
   const handleMuteConversation = React.useCallback(
     (roomId: string) => {
       setMutedRoomIds(current =>
-        current.includes(roomId)
-          ? current.filter(existingId => existingId !== roomId)
-          : [...current, roomId],
+        current.includes(roomId) ? current.filter(id => id !== roomId) : [...current, roomId],
       );
       void onMuteConversation?.(roomId);
     },
@@ -235,59 +206,67 @@ export function ConversationListScreen({
   );
 
   React.useEffect(() => {
-    if (recentTargets.length === 0 && isConfirmingClear) {
-      setIsConfirmingClear(false);
-    }
+    if (recentTargets.length === 0 && isConfirmingClear) setIsConfirmingClear(false);
   }, [isConfirmingClear, recentTargets.length]);
 
   React.useEffect(() => {
-    if (!isConfirmingClear) {
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setIsConfirmingClear(false);
-    }, CLEAR_CONFIRM_TIMEOUT_MS);
-
-    return () => {
-      clearTimeout(timeout);
-    };
+    if (!isConfirmingClear) return;
+    const timeout = setTimeout(() => setIsConfirmingClear(false), CLEAR_CONFIRM_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
   }, [isConfirmingClear]);
 
   const handleStartConversation = React.useCallback(() => {
-    if (!onStartConversation) {
-      return;
-    }
-
+    if (!onStartConversation) return;
     const parsed = parseMatrixConversationTarget(target);
     if (!parsed.ok) {
       setLocalError(parsed.error);
       return;
     }
-
     setLocalError(undefined);
     void onStartConversation(parsed.target.normalized);
     setTarget('');
     setIsComposerOpen(false);
   }, [onStartConversation, target]);
 
+  const proxyLabel = renderProxyLabel(proxyStatus);
+  const proxyColor = proxyStatusColor(proxyStatus);
+  const netColor = networkStatusColor(networkState);
+
   return (
-    <Screen>
+    <Screen dark>
+      {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={[TextPresets.h2, styles.heading]}>Chats</Text>
-        <Text style={[TextPresets.caption, styles.subheading]}>
-          Secure messages routed through Sauti.
+        <Text style={styles.heading}>Active Encrypted{'\n'}Channels</Text>
+        <Text style={styles.subheading}>
+          Peer-to-peer secure messaging routed through encrypted agreement relays.
         </Text>
 
+        {/* Status pills — proxy and network shown separately */}
+        <View style={styles.statusRow}>
+          <View style={[styles.statusPill, {borderColor: proxyColor}]}>
+            <View style={[styles.statusDot, {backgroundColor: proxyColor}]} />
+            <Text style={[styles.statusPillText, {color: proxyColor}]}>{proxyLabel}</Text>
+          </View>
+          <View style={[styles.statusPill, {borderColor: netColor}]}>
+            <View style={[styles.statusDot, {backgroundColor: netColor}]} />
+            <Text style={[styles.statusPillText, {color: netColor}]}>
+              {networkState === 'connected' ? 'Online' : 'Offline'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Search bar */}
         <View style={styles.searchContainer}>
           <Input
             label=""
-            placeholder="Search in message"
+            placeholder="Search channels..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            dark
           />
         </View>
 
+        {/* Filter tabs */}
         <View style={styles.filterTabs}>
           {FILTER_TABS.map(tab => (
             <TouchableOpacity
@@ -295,10 +274,7 @@ export function ConversationListScreen({
               accessibilityRole="button"
               accessibilityLabel={`filter-tab-${tab.key}`}
               accessibilityState={{selected: selectedFilter === tab.key}}
-              style={[
-                styles.filterTab,
-                selectedFilter === tab.key && styles.filterTabActive,
-              ]}
+              style={[styles.filterTab, selectedFilter === tab.key && styles.filterTabActive]}
               activeOpacity={0.7}
               onPress={() => setSelectedFilter(tab.key)}>
               <Text
@@ -312,45 +288,13 @@ export function ConversationListScreen({
           ))}
         </View>
 
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusBanner,
-              proxyStatus === 'connected'
-                ? styles.statusSuccess
-                : proxyStatus === 'connecting'
-                  ? styles.statusWarning
-                  : styles.statusError,
-            ]}>
-            <Text style={styles.statusText}>{renderProxyStatusLabel(proxyStatus)}</Text>
-          </View>
-
-          <View
-            style={[
-              styles.statusBanner,
-              networkState === 'connected' ? styles.statusSuccess : styles.statusError,
-            ]}>
-            <Text style={styles.statusText}>
-              {networkState === 'connected' ? 'Online' : 'Offline'}
-            </Text>
-          </View>
-        </View>
-
-        {networkState === 'degraded' ? (
-          <Text style={styles.degradedHint}>
-            Network is degraded. Messages will retry automatically.
-          </Text>
-        ) : null}
-
+        {/* VPN warning */}
         {vpnTunnelFailed ? (
           <View style={styles.vpnWarningCard} testID="vpn-tunnel-failure-warning">
             <View style={styles.vpnWarningBody}>
-              <Text style={styles.vpnWarningTitle}>
-                VPN tunnel failed — running unprotected
-              </Text>
+              <Text style={styles.vpnWarningTitle}>VPN tunnel failed — running unprotected</Text>
               <Text style={styles.vpnWarningDetail}>
-                The secure proxy could not start. Your messages are being sent
-                without VPN protection. Tap Retry to attempt reconnection.
+                The secure proxy could not start. Tap Retry to attempt reconnection.
               </Text>
             </View>
             {onRetryProxy ? (
@@ -366,10 +310,17 @@ export function ConversationListScreen({
           </View>
         ) : null}
 
+        {networkState === 'degraded' ? (
+          <Text style={styles.degradedHint}>
+            Network is degraded. Messages will retry automatically.
+          </Text>
+        ) : null}
+
+        {/* New conversation composer */}
         {onStartConversation && isComposerOpen ? (
-          <View style={styles.startConversationCard}>
-            <View style={styles.startConversationHeader}>
-              <Text style={styles.startConversationTitle}>New Conversation</Text>
+          <View style={styles.composerCard}>
+            <View style={styles.composerHeader}>
+              <Text style={styles.composerTitle}>New Conversation</Text>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="close-new-conversation"
@@ -423,20 +374,17 @@ export function ConversationListScreen({
                           setIsConfirmingClear(true);
                           return;
                         }
-
                         setIsConfirmingClear(false);
                         void onClearRecentTargets();
                       }}>
-                      <Text style={styles.clearRecentTargetsText}>
+                      <Text style={styles.clearRecentText}>
                         {isConfirmingClear ? 'Confirm' : 'Clear'}
                       </Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
                 {isConfirmingClear ? (
-                  <Text style={styles.clearConfirmHint}>
-                    Tap Confirm again to clear all recent targets.
-                  </Text>
+                  <Text style={styles.clearConfirmHint}>Tap Confirm again to clear.</Text>
                 ) : null}
                 <View style={styles.suggestionRow}>
                   {recentTargets.map(recentTarget => (
@@ -451,7 +399,6 @@ export function ConversationListScreen({
                             void onStartRecentTarget(recentTarget);
                             return;
                           }
-
                           setTarget(recentTarget);
                           setLocalError(undefined);
                           setIsConfirmingClear(false);
@@ -468,7 +415,7 @@ export function ConversationListScreen({
                             setIsConfirmingClear(false);
                             void onRemoveRecentTarget(recentTarget);
                           }}>
-                          <Text style={styles.removeRecentButtonText}>x</Text>
+                          <Text style={styles.removeRecentText}>×</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -483,14 +430,11 @@ export function ConversationListScreen({
               value={target}
               onChangeText={value => {
                 setTarget(value);
-                if (localError) {
-                  setLocalError(undefined);
-                }
-                if (isConfirmingClear) {
-                  setIsConfirmingClear(false);
-                }
+                if (localError) setLocalError(undefined);
+                if (isConfirmingClear) setIsConfirmingClear(false);
               }}
               editable={!isStartingConversation}
+              dark
             />
             <Text style={styles.startHint}>{hint.text}</Text>
             {hint.suggestions.length > 0 ? (
@@ -512,9 +456,7 @@ export function ConversationListScreen({
                 ))}
               </View>
             ) : null}
-            {localError ? (
-              <Text style={styles.startError}>{localError}</Text>
-            ) : null}
+            {localError ? <Text style={styles.startError}>{localError}</Text> : null}
             {startConversationError ? (
               <Text style={styles.startError}>{startConversationError}</Text>
             ) : null}
@@ -534,6 +476,7 @@ export function ConversationListScreen({
         ) : null}
       </View>
 
+      {/* ── Conversation list ── */}
       <FlatList
         data={filteredConversations}
         keyExtractor={item => item.roomId}
@@ -604,6 +547,7 @@ export function ConversationListScreen({
         )}
       />
 
+      {/* ── FAB ── */}
       {onStartConversation ? (
         <TouchableOpacity
           accessibilityRole="button"
@@ -631,82 +575,104 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.base,
+    gap: Spacing.sm,
   },
   heading: {
-    color: Colors.neutral[900],
+    fontSize: 26,
+    fontWeight: '700',
+    color: Colors.neutral[0],
+    lineHeight: 32,
   },
   subheading: {
-    color: Colors.neutral[600],
+    ...TextPresets.caption,
+    color: Colors.neutral[400],
+    lineHeight: 18,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
     marginTop: Spacing.xs,
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius.full,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
   searchContainer: {
-    marginTop: Spacing.base,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   filterTabs: {
     flexDirection: 'row',
     gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-    paddingHorizontal: 0,
   },
   filterTab: {
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
-    backgroundColor: Colors.neutral[100],
+    backgroundColor: Colors.neutral[800],
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderColor: Colors.neutral[700],
   },
   filterTabActive: {
-    backgroundColor: Colors.brand[100],
-    borderColor: Colors.brand[300],
+    backgroundColor: Colors.brand[900],
+    borderColor: Colors.brand[600],
   },
   filterTabText: {
     ...TextPresets.label,
-    color: Colors.neutral[700],
+    color: Colors.neutral[400],
   },
   filterTabTextActive: {
-    color: Colors.brand[700],
+    color: Colors.brand[300],
     fontWeight: '600',
   },
-  startConversationCard: {
-    marginTop: Spacing.base,
+  composerCard: {
+    marginTop: Spacing.xs,
     gap: Spacing.sm,
     padding: Spacing.sm,
-    backgroundColor: Colors.neutral[0],
-    borderRadius: Radius.md,
+    backgroundColor: Colors.neutral[800],
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderColor: Colors.neutral[700],
   },
-  startConversationHeader: {
+  composerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.sm,
   },
-  startConversationTitle: {
+  composerTitle: {
     ...TextPresets.body,
-    color: Colors.neutral[900],
+    color: Colors.neutral[0],
     fontWeight: '600',
   },
   closeComposerText: {
     ...TextPresets.label,
-    color: Colors.brand[700],
+    color: Colors.brand[400],
   },
   startHint: {
     ...TextPresets.caption,
-    color: Colors.neutral[600],
+    color: Colors.neutral[500],
   },
-  searchResultsSection: {
-    gap: Spacing.xs,
-  },
+  searchResultsSection: {gap: Spacing.xs},
   searchResultsLabel: {
     ...TextPresets.label,
     color: Colors.neutral[500],
   },
-  searchResultsList: {
-    gap: Spacing.xs,
-  },
+  searchResultsList: {gap: Spacing.xs},
   searchResultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -714,65 +680,33 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
     borderRadius: Radius.md,
-    backgroundColor: Colors.neutral[50],
+    backgroundColor: Colors.neutral[700],
   },
   searchResultText: {
     ...TextPresets.body,
-    color: Colors.neutral[800],
-  },
-  statusRow: {
-    marginTop: Spacing.sm,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  statusBanner: {
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderWidth: 1,
-  },
-  statusSuccess: {
-    borderColor: Colors.semantic.success,
-    backgroundColor: Colors.semantic.successBg,
-  },
-  statusWarning: {
-    borderColor: Colors.semantic.warning,
-    backgroundColor: Colors.semantic.warningBg,
-  },
-  statusError: {
-    borderColor: Colors.semantic.error,
-    backgroundColor: Colors.semantic.errorBg,
-  },
-  statusText: {
-    ...TextPresets.label,
-    color: Colors.neutral[800],
+    color: Colors.neutral[50],
   },
   degradedHint: {
     ...TextPresets.caption,
-    marginTop: Spacing.xs,
-    color: Colors.neutral[600],
+    color: Colors.semantic.warning,
   },
-  recentTargetsSection: {
-    gap: Spacing.xs,
-  },
+  recentTargetsSection: {gap: Spacing.xs},
   recentTargetsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.sm,
   },
   recentTargetsLabel: {
     ...TextPresets.label,
     color: Colors.neutral[500],
   },
-  clearRecentTargetsText: {
+  clearRecentText: {
     ...TextPresets.label,
-    color: Colors.brand[700],
+    color: Colors.brand[400],
   },
   clearConfirmHint: {
     ...TextPresets.caption,
-    color: Colors.neutral[600],
+    color: Colors.neutral[500],
   },
   suggestionRow: {
     flexDirection: 'row',
@@ -787,14 +721,14 @@ const styles = StyleSheet.create({
   recentTargetChip: {
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    backgroundColor: Colors.neutral[100],
+    borderColor: Colors.neutral[600],
+    backgroundColor: Colors.neutral[800],
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
   },
   recentTargetChipText: {
     ...TextPresets.label,
-    color: Colors.neutral[700],
+    color: Colors.neutral[300],
   },
   removeRecentButton: {
     width: 20,
@@ -802,23 +736,23 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.neutral[200],
+    backgroundColor: Colors.neutral[700],
   },
-  removeRecentButtonText: {
+  removeRecentText: {
     ...TextPresets.label,
-    color: Colors.neutral[700],
+    color: Colors.neutral[400],
   },
   suggestionChip: {
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: Colors.brand[200],
-    backgroundColor: Colors.brand[50],
+    borderColor: Colors.brand[700],
+    backgroundColor: Colors.brand[900],
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
   },
   suggestionChipText: {
     ...TextPresets.label,
-    color: Colors.brand[700],
+    color: Colors.brand[300],
   },
   startError: {
     ...TextPresets.caption,
@@ -826,7 +760,7 @@ const styles = StyleSheet.create({
   },
   searchEmptyHint: {
     ...TextPresets.caption,
-    color: Colors.neutral[600],
+    color: Colors.neutral[500],
   },
   listContent: {
     paddingBottom: Spacing['3xl'] + 72,
@@ -834,10 +768,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     gap: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
+    borderBottomColor: Colors.neutral[800],
   },
   rowBody: {
     flex: 1,
@@ -862,18 +796,18 @@ const styles = StyleSheet.create({
   },
   name: {
     ...TextPresets.body,
-    color: Colors.neutral[900],
+    color: Colors.neutral[0],
     fontWeight: '600',
     flex: 1,
   },
   preview: {
     ...TextPresets.caption,
-    color: Colors.neutral[600],
+    color: Colors.neutral[500],
     flex: 1,
   },
   time: {
     ...TextPresets.label,
-    color: Colors.neutral[500],
+    color: Colors.neutral[600],
   },
   mutedBadge: {
     ...TextPresets.label,
@@ -922,13 +856,13 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: Radius.full,
     borderWidth: 2,
-    borderColor: Colors.neutral[0],
+    borderColor: Colors.neutral[900],
   },
   presenceOnline: {
     backgroundColor: Colors.semantic.success,
   },
   presenceOffline: {
-    backgroundColor: Colors.neutral[400],
+    backgroundColor: Colors.neutral[700],
   },
   fab: {
     position: 'absolute',
@@ -941,11 +875,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand[500],
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
-    shadowColor: '#000000',
-    shadowOffset: {width: 0, height: 8},
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowColor: Colors.brand[500],
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   fabPlus: {
     ...TextPresets.body,
@@ -958,7 +892,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   vpnWarningCard: {
-    marginTop: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
@@ -966,7 +899,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.semantic.error,
-    backgroundColor: Colors.semantic.errorBg,
+    backgroundColor: 'rgba(239,68,68,0.1)',
   },
   vpnWarningBody: {
     flex: 1,
@@ -979,10 +912,10 @@ const styles = StyleSheet.create({
   },
   vpnWarningDetail: {
     ...TextPresets.caption,
-    color: Colors.neutral[700],
+    color: Colors.neutral[400],
   },
   vpnRetryButton: {
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     backgroundColor: Colors.semantic.error,

@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,   // pill shape throughout
   },
   disabled: {
     opacity: 0.45,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand[500],
   },
   secondary: {
-    backgroundColor: Colors.neutral[0],
+    backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: Colors.brand[500],
   },
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
 
   // --- sizes ---
   sm: {paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md},
-  md: {paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.base},
+  md: {paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.xl},
   lg: {paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl},
 
   // --- label base ---
@@ -95,5 +95,5 @@ const styles = StyleSheet.create({
   // --- size labels ---
   smLabel: {fontSize: FontSize.sm},
   mdLabel: {fontSize: FontSize.md},
-  lgLabel: {fontSize: FontSize.lg},
+  lgLabel: {fontSize: FontSize.lg, fontWeight: FontWeight.bold},
 });

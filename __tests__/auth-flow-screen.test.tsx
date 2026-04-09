@@ -66,7 +66,7 @@ describe('AuthFlowScreen', () => {
 
     try {
       const phoneInput = tree.root.findByType(TextInput);
-      const continueButton = findButtonByLabel(tree, 'Continue');
+      const continueButton = findButtonByLabel(tree, 'Send Code');
 
       await act(async () => {
         phoneInput.props.onChangeText('+234 801 234 5678');
@@ -107,7 +107,7 @@ describe('AuthFlowScreen', () => {
         await Promise.resolve();
       });
       await act(async () => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
         await Promise.resolve();
       });
 
@@ -160,7 +160,7 @@ describe('AuthFlowScreen', () => {
         await Promise.resolve();
       });
       await act(async () => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
         await Promise.resolve();
       });
 
@@ -239,12 +239,16 @@ describe('AuthFlowScreen', () => {
       });
 
       await act(async () => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
         await Promise.resolve();
       });
 
       const signInHeading = tree.root.findAll(
-        node => node.type === 'Text' && node.props.children === 'Sign in to Sauti',
+        node =>
+          node.type === 'Text' &&
+          (node.props.children === 'SAUTI' ||
+            (typeof node.props.children === 'string' &&
+              (node.props.children as string).includes('Number'))),
       );
       const errorNodes = tree.root.findAll(
         node =>
@@ -280,7 +284,7 @@ describe('AuthFlowScreen', () => {
       });
 
       await act(async () => {
-        findButtonByLabel(tree, 'Continue').props.onPress();
+        findButtonByLabel(tree, 'Send Code').props.onPress();
         await Promise.resolve();
       });
 

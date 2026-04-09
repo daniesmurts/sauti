@@ -142,9 +142,14 @@ describe('MainFlowScreen', () => {
         await Promise.resolve();
       });
 
-      const chatsHeading = tree.root.findAll(
-        node => node.type === 'Text' && node.props.children === 'Chats',
-      );
+      // Heading is "Active Encrypted\nChannels" — children may be array or string
+      const chatsHeading = tree.root.findAll(node => {
+        if (node.type !== 'Text') return false;
+        const c = node.props.children;
+        if (typeof c === 'string') return c.includes('Channels');
+        if (Array.isArray(c)) return c.some((part: unknown) => typeof part === 'string' && (part as string).includes('Channels'));
+        return false;
+      });
       expect(chatsHeading.length).toBeGreaterThan(0);
     } finally {
       tree.unmount();
