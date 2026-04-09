@@ -1,4 +1,5 @@
 export * from './AuthFlowScreen';
+export * from './AuthMethodChooserScreen';
 export * from './EmailEntryScreen';
 export * from './OTPVerificationScreen';
 export * from './PhoneOTPVerificationScreen';

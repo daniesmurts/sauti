@@ -6,6 +6,7 @@ import {createMatrixProvisioningGateway} from '../_shared/matrixProvisioning.ts'
 import {postgrestInsert} from '../_shared/postgrest.ts';
 import {
   createRegisterMatrixUserHandler,
+  type FirebaseTokenVerificationGateway,
   type MatrixRegistrationRepository,
   type OtpVerificationGateway,
 } from './handler.ts';
@@ -23,6 +24,35 @@ const otpVerifier: OtpVerificationGateway = {
     return input.otpCode === env.otpTestCode;
   },
 };
+
+const firebaseTokenVerifier: FirebaseTokenVerificationGateway | undefined =
+  env.firebaseWebApiKey
+    ? {
+        async verifyToken(idToken) {
+          const response = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.firebaseWebApiKey}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({idToken}),
+            },
+          );
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const payload = (await response.json()) as {
+            users?: Array<{phoneNumber?: string}>;
+          };
+          const phoneNumber = payload.users?.[0]?.phoneNumber;
+
+          return typeof phoneNumber === 'string' ? phoneNumber : null;
+        },
+      }
+    : undefined;
 
 const matrixGateway = createMatrixProvisioningGateway();
 
@@ -46,18 +76,30 @@ const repository: MatrixRegistrationRepository = {
 
 const handler = createRegisterMatrixUserHandler({
   otpVerifier,
+  firebaseTokenVerifier,
   matrixGateway,
   repository,
 });
 
 serve(async request => {
-  const body = readJsonObject(await request.text());
-  const result = await handler(body);
+  try {
+    const body = readJsonObject(await request.text());
+    const result = await handler(body);
 
-  return new Response(JSON.stringify(result.body), {
-    status: result.status,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unexpected error.';
+
+    return new Response(JSON.stringify({error: message}), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 });

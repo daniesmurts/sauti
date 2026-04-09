@@ -1,1 +1,4 @@
 project_id = "pcvysozwnegddinktcjd"
+
+[functions.matrix-provisioning-register]
+verify_jwt = false

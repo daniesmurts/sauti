@@ -2,12 +2,12 @@ import {MatrixCryptoWrapper} from '../src/core/matrix/MatrixCrypto';
 
 describe('MatrixCryptoWrapper', () => {
   it('initializes E2EE via matrix crypto API', async () => {
-    const initCrypto = jest.fn().mockResolvedValue(undefined);
-    const wrapper = new MatrixCryptoWrapper(() => ({initCrypto}) as never);
+    const initRustCrypto = jest.fn().mockResolvedValue(undefined);
+    const wrapper = new MatrixCryptoWrapper(() => ({initRustCrypto}) as never);
 
     await wrapper.initializeE2EE();
 
-    expect(initCrypto).toHaveBeenCalledTimes(1);
+    expect(initRustCrypto).toHaveBeenCalledTimes(1);
   });
 
   it('bootstraps secret storage, cross-signing, and key backup', async () => {
@@ -18,9 +18,7 @@ describe('MatrixCryptoWrapper', () => {
     const wrapper = new MatrixCryptoWrapper(
       () =>
         ({
-          bootstrapSecretStorage,
-          bootstrapCrossSigning,
-          checkKeyBackupAndEnable,
+          getCrypto: () => ({bootstrapSecretStorage, bootstrapCrossSigning, checkKeyBackupAndEnable}),
         }) as never,
     );
 
@@ -35,13 +33,12 @@ describe('MatrixCryptoWrapper', () => {
     const setDeviceVerified = jest.fn().mockResolvedValue(undefined);
     const getDeviceVerificationStatus = jest
       .fn()
-      .mockReturnValue({crossSigningVerified: false});
+      .mockResolvedValue({crossSigningVerified: false});
 
     const wrapper = new MatrixCryptoWrapper(
       () =>
         ({
-          getDeviceVerificationStatus,
-          setDeviceVerified,
+          getCrypto: () => ({getDeviceVerificationStatus, setDeviceVerified}),
         }) as never,
     );
 
@@ -62,7 +59,7 @@ describe('MatrixCryptoWrapper', () => {
     const wrapper = new MatrixCryptoWrapper(
       () =>
         ({
-          initCrypto: jest.fn().mockRejectedValue(new Error('init failed')),
+          initRustCrypto: jest.fn().mockRejectedValue(new Error('init failed')),
         }) as never,
     );
 

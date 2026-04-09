@@ -62,11 +62,21 @@ export class MatrixRuntime {
       this.deps.client.initialize({...options, fetchFn});
 
       if (options.enableE2EE !== false) {
-        await this.deps.crypto.initializeE2EE();
+        try {
+          await this.deps.crypto.initializeE2EE();
+        } catch {
+          // E2EE bootstrap is best-effort because SDK crypto availability
+          // differs across environments and native integrations.
+        }
       }
 
       if (options.enableKeyBackup !== false) {
-        await this.deps.crypto.ensureKeyBackup();
+        try {
+          await this.deps.crypto.ensureKeyBackup();
+        } catch {
+          // Key backup bootstrap is best-effort because some homeservers do not
+          // support the full cross-signing flow required by matrix-js-sdk.
+        }
       }
 
       await this.deps.sync.start();

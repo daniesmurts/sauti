@@ -4,7 +4,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Button, Screen} from '../../../ui/components';
 import {Colors, Spacing, TextPresets} from '../../../ui/tokens';
 
-import {OtpAuthService, type RequestOtpResult} from '../api';
+import {FirebasePhoneAuthService, OtpAuthService, type RequestOtpResult} from '../api';
 import {createAuthController, type AuthController} from '../controller';
 import {type AuthStoreSnapshot} from '../store';
 
@@ -28,18 +28,20 @@ function buildInitialSnapshot(controller: AuthController): AuthStoreSnapshot {
 export interface AuthFlowScreenProps {
   controller?: AuthController;
   otpService?: Pick<OtpAuthService, 'requestOtp' | 'verifyOtp'>;
+  onAuthenticated?: () => void;
 }
 
 export function AuthFlowScreen({
   controller,
   otpService,
+  onAuthenticated,
 }: AuthFlowScreenProps): React.JSX.Element {
   const resolvedController = React.useMemo(
     () => controller ?? createAuthController(),
     [controller],
   );
   const resolvedOtpService = React.useMemo(
-    () => otpService ?? new OtpAuthService(),
+    () => otpService ?? new FirebasePhoneAuthService(),
     [otpService],
   );
 
@@ -52,6 +54,8 @@ export function AuthFlowScreen({
   const [otpRequest, setOtpRequest] = React.useState<RequestOtpResult | null>(null);
   const [otpErrorMessage, setOtpErrorMessage] = React.useState<string | undefined>();
   const [flowStatus, setFlowStatus] = React.useState<'idle' | 'requesting_otp' | 'verifying_otp'>('idle');
+    const [firebaseIdToken, setFirebaseIdToken] = React.useState<string | undefined>();
+    const [profileError, setProfileError] = React.useState<string | undefined>();
 
   React.useEffect(() => {
     return resolvedController.subscribe(setSnapshot);
@@ -85,13 +89,14 @@ export function AuthFlowScreen({
       setOtpErrorMessage(undefined);
 
       try {
-        await resolvedOtpService.verifyOtp({
+          const verifyResult = await resolvedOtpService.verifyOtp({
           phoneNumber,
           otpCode,
           requestId: otpRequest?.requestId,
         });
 
         setPendingOtpCode(otpCode);
+          setFirebaseIdToken(verifyResult.firebaseIdToken);
         setStep('profile_setup');
       } catch (error) {
         setOtpErrorMessage(
@@ -106,14 +111,22 @@ export function AuthFlowScreen({
 
   const handleProfileSubmit = React.useCallback(
     async ({displayName}: ProfileSetupPayload) => {
-      await resolvedController.registerAndBootstrap({
-        phoneNumber,
-        otpCode: pendingOtpCode,
-        password: buildRegistrationPassword(phoneNumber, pendingOtpCode),
-        displayName,
-      });
+        setProfileError(undefined);
+        try {
+          await resolvedController.registerAndBootstrap({
+            phoneNumber,
+            otpCode: pendingOtpCode,
+            password: buildRegistrationPassword(phoneNumber, pendingOtpCode),
+            displayName,
+            firebaseIdToken,
+          });
+        } catch (error) {
+          setProfileError(
+            error instanceof Error ? error.message : 'Registration failed. Please try again.',
+          );
+        }
     },
-    [pendingOtpCode, phoneNumber, resolvedController],
+      [firebaseIdToken, pendingOtpCode, phoneNumber, resolvedController],
   );
 
   const isRegistering = snapshot.status === 'registering';
@@ -122,6 +135,11 @@ export function AuthFlowScreen({
   const otpStepError = step === 'otp_verification' ? otpErrorMessage ?? remoteError : remoteError;
 
   if (snapshot.status === 'ready') {
+    if (onAuthenticated) {
+      onAuthenticated();
+      return <Screen><View /></Screen>;
+    }
+
     return (
       <Screen>
         <View style={styles.successContainer}>
@@ -164,6 +182,7 @@ export function AuthFlowScreen({
   return (
     <ProfileSetupScreen
       loading={isRegistering}
+        errorMessage={remoteError ?? profileError}
       onSubmit={payload => {
         void handleProfileSubmit(payload);
       }}

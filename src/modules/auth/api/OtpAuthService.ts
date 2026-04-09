@@ -18,6 +18,7 @@ export interface VerifyOtpInput {
 
 export interface VerifyOtpResult {
   verified: boolean;
+  firebaseIdToken?: string;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

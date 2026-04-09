@@ -113,6 +113,14 @@ For `register-matrix-user`, production provisioning also expects:
 - `MATRIX_PROVISIONING_API_URL`
 - `MATRIX_PROVISIONING_API_TOKEN` (optional, but recommended)
 
+Alternatively, `register-matrix-user` can provision accounts directly against a
+Synapse-compatible admin API without a separate provisioning service. In that
+mode set:
+
+- `MATRIX_HOMESERVER_URL`
+- `MATRIX_HOMESERVER_DOMAIN`
+- `MATRIX_PROVISIONING_API_TOKEN`
+
 For local OTP smoke testing before a real provider is wired, you can also set:
 
 - `SAUTI_TEST_OTP_CODE`
@@ -132,6 +140,10 @@ When `SAUTI_TEST_OTP_CODE` is present, `request-otp` and `verify-otp` run in tes
 ```
 
 That endpoint can wrap the real Conduit admin mechanism without changing the app or Supabase handler contract.
+
+If you use direct admin provisioning instead of a separate provisioning
+service, the homeserver reverse proxy must expose `/_synapse/admin` to the
+homeserver backend in addition to `/_matrix`.
 
 # Android VPN Validation
 

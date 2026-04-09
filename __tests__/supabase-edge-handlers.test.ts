@@ -123,6 +123,79 @@ describe('Supabase edge handlers', () => {
       expect(response.status).toBe(401);
       expect(response.body).toEqual({error: 'OTP verification failed.'});
     });
+
+    it('accepts firebaseIdToken path and skips OTP verification when phone matches', async () => {
+      const repository = {
+        upsertRegistration: jest.fn(async () => undefined),
+      };
+      const matrixResult: RegisterMatrixUserResult = {
+        userId: '@ama:sauti.app',
+        accessToken: 'access-token-2',
+        deviceId: 'device-2',
+        refreshToken: 'refresh-token-2',
+        expiresInMs: 3600000,
+      };
+      const otpVerifier = {
+        verifyOtp: jest.fn(async () => {
+          throw new Error('OTP verifier should be skipped for firebaseIdToken path');
+        }),
+      };
+      const firebaseTokenVerifier = {
+        verifyToken: jest.fn(async () => '+2348012345678'),
+      };
+
+      const handler = createRegisterMatrixUserHandler({
+        otpVerifier,
+        firebaseTokenVerifier,
+        matrixGateway: {
+          registerUser: jest.fn(async () => matrixResult),
+        },
+        repository,
+      });
+
+      const response = await handler({
+        phoneNumber: '+2348012345678',
+        otpCode: '123456',
+        password: 'strong-password',
+        firebaseIdToken: 'firebase-id-token',
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(matrixResult);
+      expect(firebaseTokenVerifier.verifyToken).toHaveBeenCalledWith('firebase-id-token');
+      expect(otpVerifier.verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it('rejects firebaseIdToken when verified phone number mismatches', async () => {
+      const handler = createRegisterMatrixUserHandler({
+        otpVerifier: {
+          verifyOtp: jest.fn(async () => true),
+        },
+        firebaseTokenVerifier: {
+          verifyToken: jest.fn(async () => '+15551234567'),
+        },
+        matrixGateway: {
+          registerUser: jest.fn(async () => {
+            throw new Error('should not run');
+          }),
+        },
+        repository: {
+          upsertRegistration: jest.fn(async () => undefined),
+        },
+      });
+
+      const response = await handler({
+        phoneNumber: '+2348012345678',
+        otpCode: '123456',
+        password: 'strong-password',
+        firebaseIdToken: 'firebase-id-token',
+      });
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({
+        error: 'Firebase ID token is invalid or phone number mismatch.',
+      });
+    });
   });
 
   describe('verify-otp handler', () => {

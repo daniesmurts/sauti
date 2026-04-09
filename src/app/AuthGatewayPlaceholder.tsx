@@ -3,16 +3,20 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {NavigationContainer} from '@react-navigation/native';
 
 import {useAuthRedirect} from '../modules/auth/hooks/useAuthRedirect';
+import {AuthMethodChooserScreen} from '../modules/auth/screens/AuthMethodChooserScreen';
+import {AuthFlowScreen} from '../modules/auth/screens/AuthFlowScreen';
 import {EmailEntryScreen} from '../modules/auth/screens/EmailEntryScreen';
 import {OtpVerificationScreen} from '../modules/auth/screens/OTPVerificationScreen';
 import {TotpSetupScreen} from '../modules/auth/screens/TotpSetupScreen';
 import {TotpVerificationScreen} from '../modules/auth/screens/TotpVerificationScreen';
 
 type AuthStackParamList = {
+  AuthMethodChooser: undefined;
   EmailEntry: undefined;
   OtpVerification: {email: string; mode: 'signup' | 'signin'};
   TotpVerification: undefined;
   TotpSetup: undefined;
+  PhoneAuth: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -26,18 +30,18 @@ export interface AuthGatewayPlaceholderProps {
 
 function AuthInitialRedirect({
   onAuthenticated,
-  navigateEmail,
+  navigateChooser,
   navigateTotp,
 }: {
   onAuthenticated?: () => void;
-  navigateEmail: () => void;
+  navigateChooser: () => void;
   navigateTotp: () => void;
 }): null {
   useAuthRedirect({
     onMain: () => {
       onAuthenticated?.();
     },
-    onEmailEntry: navigateEmail,
+    onEmailEntry: navigateChooser,
     onTotpVerification: navigateTotp,
   });
 
@@ -50,20 +54,28 @@ export function AuthGatewayPlaceholder({
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{headerShown: false}}>
-        <Stack.Screen name="EmailEntry">
+        <Stack.Screen name="AuthMethodChooser">
           {({navigation}) => (
             <>
               <AuthInitialRedirect
                 onAuthenticated={onAuthenticated}
-                navigateEmail={() => navigation.navigate('EmailEntry')}
+                navigateChooser={() => navigation.navigate('AuthMethodChooser')}
                 navigateTotp={() => navigation.navigate('TotpVerification')}
               />
-              <EmailEntryScreen
-                onOtpSent={(email, mode) => {
-                  navigation.navigate('OtpVerification', {email, mode});
-                }}
+              <AuthMethodChooserScreen
+                onChooseEmail={() => navigation.navigate('EmailEntry')}
+                onChoosePhone={() => navigation.navigate('PhoneAuth')}
               />
             </>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="EmailEntry">
+          {({navigation}) => (
+            <EmailEntryScreen
+              onOtpSent={(email, mode) => {
+                navigation.navigate('OtpVerification', {email, mode});
+              }}
+            />
           )}
         </Stack.Screen>
         <Stack.Screen name="OtpVerification">
@@ -92,6 +104,13 @@ export function AuthGatewayPlaceholder({
               onComplete={() => {
                 navigation.goBack();
               }}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="PhoneAuth">
+          {() => (
+            <AuthFlowScreen
+              onAuthenticated={() => onAuthenticated?.()}
             />
           )}
         </Stack.Screen>

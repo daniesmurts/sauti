@@ -5,6 +5,7 @@ export interface RegisterMatrixUserRequest {
   otpCode: string;
   password: string;
   displayName?: string;
+    firebaseIdToken?: string;
 }
 
 export interface RegisterMatrixUserResult {
@@ -27,6 +28,14 @@ export interface OtpVerificationGateway {
   verifyOtp(input: {phoneNumber: string; otpCode: string}): Promise<boolean>;
 }
 
+  export interface FirebaseTokenVerificationGateway {
+    /**
+     * Verifies a Firebase ID token and returns the verified phone number,
+     * or null if the token is invalid / cannot be verified.
+     */
+    verifyToken(idToken: string): Promise<string | null>;
+  }
+
 export interface MatrixRegistrationRepository {
   upsertRegistration(input: {
     phoneNumber: string;
@@ -38,6 +47,7 @@ export interface MatrixRegistrationRepository {
 
 export interface RegisterMatrixUserDependencies {
   otpVerifier: OtpVerificationGateway;
+    firebaseTokenVerifier?: FirebaseTokenVerificationGateway;
   matrixGateway: MatrixProvisioningGateway;
   repository: MatrixRegistrationRepository;
 }
@@ -69,7 +79,9 @@ function isRegisterRequest(value: unknown): value is RegisterMatrixUserRequest {
     typeof candidate.otpCode === 'string' &&
     typeof candidate.password === 'string' &&
     (typeof candidate.displayName === 'undefined' ||
-      typeof candidate.displayName === 'string')
+        typeof candidate.displayName === 'string') &&
+      (typeof candidate.firebaseIdToken === 'undefined' ||
+        typeof candidate.firebaseIdToken === 'string')
   );
 }
 
@@ -87,6 +99,7 @@ export function createRegisterMatrixUserHandler(
     const otpCode = request.otpCode.trim();
     const password = request.password.trim();
     const displayName = request.displayName?.trim() || undefined;
+      const firebaseIdToken = request.firebaseIdToken?.trim() || undefined;
 
     if (!isValidPhoneNumber(phoneNumber)) {
       return jsonResponse(400, {error: 'Phone number must be in international format.'});
@@ -100,9 +113,19 @@ export function createRegisterMatrixUserHandler(
       return jsonResponse(400, {error: 'Password must be at least 8 characters.'});
     }
 
-    const otpValid = await dependencies.otpVerifier.verifyOtp({phoneNumber, otpCode});
-    if (!otpValid) {
-      return jsonResponse(401, {error: 'OTP verification failed.'});
+      if (firebaseIdToken) {
+        if (!dependencies.firebaseTokenVerifier) {
+          return jsonResponse(500, {error: 'Firebase token verification is not configured.'});
+        }
+        const verifiedPhone = await dependencies.firebaseTokenVerifier.verifyToken(firebaseIdToken);
+        if (!verifiedPhone || normalizePhoneNumber(verifiedPhone) !== phoneNumber) {
+          return jsonResponse(401, {error: 'Firebase ID token is invalid or phone number mismatch.'});
+        }
+      } else {
+        const otpValid = await dependencies.otpVerifier.verifyOtp({phoneNumber, otpCode});
+        if (!otpValid) {
+          return jsonResponse(401, {error: 'OTP verification failed.'});
+        }
     }
 
     const registration = await dependencies.matrixGateway.registerUser({

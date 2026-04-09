@@ -24,6 +24,14 @@ export interface MatrixProvisioningGatewayLike {
   }>;
 }
 
+interface MatrixLoginResponse {
+  user_id?: string;
+  access_token?: string;
+  device_id?: string;
+  refresh_token?: string;
+  expires_in_ms?: number;
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -41,6 +49,153 @@ function isProvisioningResponse(value: unknown): value is MatrixProvisioningResp
       typeof value.refreshToken === 'string') &&
     (typeof value.expiresInMs === 'undefined' || typeof value.expiresInMs === 'number')
   );
+}
+
+function isMatrixLoginResponse(value: unknown): value is MatrixLoginResponse {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.user_id === 'string' &&
+    typeof value.access_token === 'string' &&
+    (typeof value.device_id === 'undefined' || typeof value.device_id === 'string') &&
+    (typeof value.refresh_token === 'undefined' || typeof value.refresh_token === 'string') &&
+    (typeof value.expires_in_ms === 'undefined' || typeof value.expires_in_ms === 'number')
+  );
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function normalizePhoneNumber(value: string): string {
+  return value.replace(/[\s()-]/g, '');
+}
+
+function normalizeMsisdn(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const buffer = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value),
+  );
+
+  return Array.from(new Uint8Array(buffer))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function buildMatrixUserId(
+  phoneNumber: string,
+  homeserverDomain: string,
+): Promise<string> {
+  const digest = await sha256Hex(normalizePhoneNumber(phoneNumber));
+  const localpart = `u_${digest.slice(0, 24)}`;
+
+  return `@${localpart}:${homeserverDomain}`;
+}
+
+async function assertOk(response: Response, messagePrefix: string): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+
+  const body = await readTextSafe(response);
+  throw new Error(`${messagePrefix} (${response.status}): ${body}`);
+}
+
+async function registerViaAdminApi(
+  fetchFn: typeof fetch,
+  input: MatrixProvisioningInput,
+): Promise<{
+  userId: string;
+  accessToken: string;
+  deviceId?: string;
+  refreshToken?: string;
+  expiresInMs: number;
+}> {
+  const env = readSupabaseFunctionEnv();
+
+  if (
+    !env.matrixHomeserverUrl ||
+    !env.matrixHomeserverDomain ||
+    !env.matrixProvisioningApiToken
+  ) {
+    throw new Error(
+      'Matrix admin provisioning is not configured. Set MATRIX_HOMESERVER_URL, MATRIX_HOMESERVER_DOMAIN, and MATRIX_PROVISIONING_API_TOKEN.',
+    );
+  }
+
+  const homeserverUrl = trimTrailingSlash(env.matrixHomeserverUrl);
+  const userId = await buildMatrixUserId(
+    input.phoneNumber,
+    env.matrixHomeserverDomain,
+  );
+
+  const createUserResponse = await fetchFn(
+    `${homeserverUrl}/_synapse/admin/v2/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.matrixProvisioningApiToken}`,
+      },
+      body: JSON.stringify({
+        password: input.password,
+        displayname: input.displayName,
+        admin: false,
+        deactivated: false,
+        logout_devices: false,
+        threepids: [
+          {
+            medium: 'msisdn',
+            address: normalizeMsisdn(input.phoneNumber),
+          },
+        ],
+      }),
+    },
+  );
+
+  await assertOk(
+    createUserResponse,
+    'Matrix admin create-user request failed. Ensure the homeserver exposes /_synapse/admin and the admin token is valid',
+  );
+
+  const loginResponse = await fetchFn(`${homeserverUrl}/_matrix/client/v3/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'm.login.password',
+      user: userId,
+      identifier: {
+        type: 'm.id.user',
+        user: userId,
+      },
+      password: input.password,
+      initial_device_display_name: 'Sauti',
+      refresh_token: true,
+    }),
+  });
+
+  await assertOk(loginResponse, 'Matrix password login failed after account creation');
+
+  const payload = await readJsonSafe(loginResponse);
+  if (!isMatrixLoginResponse(payload)) {
+    throw new Error('Matrix login payload is invalid.');
+  }
+
+  return {
+    userId: payload.user_id,
+    accessToken: payload.access_token,
+    deviceId: payload.device_id,
+    refreshToken: payload.refresh_token,
+    expiresInMs: payload.expires_in_ms ?? 24 * 60 * 60 * 1000,
+  };
 }
 
 async function readJsonSafe(response: Response): Promise<unknown | null> {
@@ -71,9 +226,17 @@ export function createMatrixProvisioningGateway(
 
   return {
     async registerUser(input) {
+      if (
+        env.matrixHomeserverUrl &&
+        env.matrixHomeserverDomain &&
+        env.matrixProvisioningApiToken
+      ) {
+        return registerViaAdminApi(fetchFn, input);
+      }
+
       if (!env.matrixProvisioningApiUrl) {
         throw new Error(
-          'Matrix provisioning integration not configured. Set MATRIX_PROVISIONING_API_URL to a service that creates Matrix users and returns credentials.',
+          'Matrix provisioning integration not configured. Set MATRIX_HOMESERVER_URL, MATRIX_HOMESERVER_DOMAIN, and MATRIX_PROVISIONING_API_TOKEN for direct admin provisioning, or MATRIX_PROVISIONING_API_URL for a separate provisioning service.',
         );
       }
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1081410233762",
+    "project_id": "sauti-650fd",
+    "storage_bucket": "sauti-650fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1081410233762:android:cb3196d6e51b6419df7efb",
+        "android_client_info": {
+          "package_name": "com.boadtech.sauti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChbxX-N-hEGeSOBAV7nVNBzIoFk3G7x5I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

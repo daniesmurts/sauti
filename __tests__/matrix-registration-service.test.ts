@@ -65,4 +65,33 @@ describe('MatrixRegistrationService', () => {
       name: 'SautiError',
     });
   });
+
+  it('surfaces structured edge function error messages', async () => {
+    const fetchFn = jest.fn(async () => ({
+      ok: false,
+      status: 500,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        error:
+          'Matrix provisioning integration not configured. Set MATRIX_PROVISIONING_API_URL to a service that creates Matrix users and returns credentials.',
+      }),
+      text: async () => '',
+    })) as unknown as typeof fetch;
+
+    const service = new MatrixRegistrationService(fetchFn);
+
+    await expect(
+      service.registerViaSupabase({
+        phoneNumber: '+2348000000000',
+        otpCode: '123456',
+        password: 'strong-password',
+      }),
+    ).rejects.toMatchObject({
+      code: 'AUTH_REGISTRATION_FAILED',
+      message:
+        'Matrix provisioning integration not configured. Set MATRIX_PROVISIONING_API_URL to a service that creates Matrix users and returns credentials.',
+    });
+  });
 });

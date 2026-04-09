@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 apply from: new File(rootProject.projectDir, "../node_modules/react-native-config/android/dotenv.gradle")
 
 /**
@@ -80,7 +81,7 @@ android {
 
     namespace "com.sautiapp"
     defaultConfig {
-        applicationId "com.sautiapp"
+        applicationId "com.boadtech.sauti"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

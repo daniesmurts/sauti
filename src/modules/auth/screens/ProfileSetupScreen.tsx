@@ -19,6 +19,7 @@ export interface ProfileSetupPayload {
 export interface ProfileSetupScreenProps {
   loading?: boolean;
   pickAvatar?: () => Promise<string | undefined>;
+    errorMessage?: string;
   onSubmit(payload: ProfileSetupPayload): void;
 }
 
@@ -31,6 +32,7 @@ function isValidDisplayName(value: string): boolean {
 export function ProfileSetupScreen({
   loading = false,
   pickAvatar = pickProfileAvatar,
+    errorMessage,
   onSubmit,
 }: ProfileSetupScreenProps): React.JSX.Element {
   const [displayName, setDisplayName] = React.useState('');
@@ -139,6 +141,11 @@ export function ProfileSetupScreen({
             disabled={loading || avatarLoading || displayName.trim().length < 2}
             accessibilityLabel="profile-setup-continue"
           />
+            {errorMessage ? (
+              <Text style={styles.remoteError} testID="profile-setup-error">
+                {errorMessage}
+              </Text>
+            ) : null}
         </View>
       </View>
     </Screen>
@@ -158,6 +165,12 @@ const styles = StyleSheet.create({
     color: Colors.neutral[600],
   },
   avatarContainer: {
+      remoteError: {
+        color: Colors.semantic.error,
+        ...TextPresets.caption,
+        textAlign: 'center',
+        marginTop: Spacing.xs,
+      },
     alignSelf: 'center',
     alignItems: 'center',
     gap: Spacing.xs,

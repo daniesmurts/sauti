@@ -7,6 +7,7 @@ export interface MatrixRegistrationRequest {
   otpCode: string;
   password: string;
   displayName?: string;
+  firebaseIdToken?: string;
 }
 
 export interface MatrixRegistrationResult extends MatrixAuthSession {
@@ -39,6 +40,31 @@ function isRegistrationPayload(value: unknown): value is {
   );
 }
 
+function isErrorPayload(value: unknown): value is {error: string} {
+  return isObject(value) && typeof value.error === 'string';
+}
+
+async function readJsonSafe(response: Response): Promise<unknown | null> {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    return null;
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function readTextSafe(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return '';
+  }
+}
+
 export class MatrixRegistrationService {
   constructor(private readonly fetchFn: typeof fetch = fetch) {}
 
@@ -62,7 +88,15 @@ export class MatrixRegistrationService {
       );
 
       if (!response.ok) {
-        throw new Error(`Registration failed with status ${response.status}`);
+        const errorPayload = await readJsonSafe(response);
+        if (isErrorPayload(errorPayload)) {
+          throw new Error(errorPayload.error);
+        }
+
+        const errorText = await readTextSafe(response);
+        throw new Error(
+          errorText || `Registration failed with status ${response.status}`,
+        );
       }
 
       const payloadUnknown: unknown = await response.json();
@@ -84,7 +118,9 @@ export class MatrixRegistrationService {
 
       throw new SautiError(
         'AUTH_REGISTRATION_FAILED',
-        'Failed to register Matrix account via Supabase edge function.',
+        error instanceof Error
+          ? error.message
+          : 'Failed to register Matrix account via Supabase edge function.',
         error,
       );
     }

@@ -64,6 +64,8 @@ export function OtpVerificationScreen({
   }, [devCode, onVerified, verifyOtp]);
   // ─────────────────────────────────────────────────────────────────────────
 
+  const hasAutoSubmittedRef = React.useRef('');
+
   const submitCode = React.useCallback(async () => {
     await verifyOtp(code);
     const snapshot = useAuthStore.getState();
@@ -73,10 +75,14 @@ export function OtpVerificationScreen({
   }, [code, onVerified, verifyOtp]);
 
   React.useEffect(() => {
-    if (code.length === 6 && !isLoading) {
+    if (code.length === 6 && !isLoading && hasAutoSubmittedRef.current !== code) {
+      hasAutoSubmittedRef.current = code;
       void submitCode();
     }
-  }, [code, isLoading, submitCode]);
+    // isLoading intentionally excluded: including it causes the effect to re-fire
+    // after every verification attempt and creates an infinite submit loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, submitCode]);
 
   return (
     <Screen avoidKeyboard>

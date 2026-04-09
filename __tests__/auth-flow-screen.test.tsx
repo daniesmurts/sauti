@@ -219,6 +219,28 @@ describe('AuthFlowScreen', () => {
     }
   });
 
+  it('calls onAuthenticated when auth snapshot is ready and callback is provided', () => {
+    const controller = createMockController('ready');
+    const onAuthenticated = jest.fn();
+    const tree = renderer.create(
+      <AuthFlowScreen controller={controller} onAuthenticated={onAuthenticated} />,
+    );
+
+    try {
+      expect(onAuthenticated).toHaveBeenCalledTimes(1);
+
+      // Should NOT render the success heading when onAuthenticated is provided
+      const successHeading = tree.root.findAll(
+        node =>
+          node.type === 'Text' &&
+          node.props.children === 'Authentication Complete',
+      );
+      expect(successHeading.length).toBe(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('stays on phone entry and shows request error when otp request fails', async () => {
     const controller = createMockController();
     const otpService = {
