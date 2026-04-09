@@ -25,6 +25,16 @@ export interface NewConversationScreenProps {
   isStartingConversation?: boolean;
   startConversationError?: string;
   onBack(): void;
+  /**
+   * When provided, called before starting a new raw-target conversation.
+   * Return true to allow, false to block (triggers onUpgradeRequired).
+   * Not called when selecting an existing conversation from the contact list.
+   */
+  onGateCheck?(target: string): Promise<boolean>;
+  /** True while onGateCheck is running. */
+  isGateChecking?: boolean;
+  /** Called when onGateCheck returns false. */
+  onUpgradeRequired?(target: string): void;
 }
 
 type FilterTabType = 'all' | 'contacts' | 'finance' | 'unknown';
@@ -93,6 +103,9 @@ export function NewConversationScreen({
   isStartingConversation = false,
   startConversationError,
   onBack,
+  onGateCheck,
+  isGateChecking = false,
+  onUpgradeRequired,
 }: NewConversationScreenProps): React.JSX.Element {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [target, setTarget] = React.useState('');
@@ -156,11 +169,27 @@ export function NewConversationScreen({
       return;
     }
 
+    const normalizedTarget = parsed.target.normalized;
     setLocalError(undefined);
-    void onStartConversation(parsed.target.normalized);
+
+    if (onGateCheck) {
+      void (async () => {
+        const allowed = await onGateCheck(normalizedTarget);
+        if (!allowed) {
+          onUpgradeRequired?.(normalizedTarget);
+          return;
+        }
+        void onStartConversation(normalizedTarget);
+        setTarget('');
+        onBack();
+      })();
+      return;
+    }
+
+    void onStartConversation(normalizedTarget);
     setTarget('');
     onBack();
-  }, [onStartConversation, target, onBack]);
+  }, [onStartConversation, target, onBack, onGateCheck, onUpgradeRequired]);
 
   const handleSelectContact = React.useCallback(
     (roomId: string) => {
@@ -378,9 +407,10 @@ export function NewConversationScreen({
         <Button
           label="Start Chat"
           size="sm"
-          loading={isStartingConversation}
-          disabled={isStartingConversation || target.trim().length === 0}
+          loading={isStartingConversation || isGateChecking}
+          disabled={isStartingConversation || isGateChecking || target.trim().length === 0}
           onPress={handleStartConversation}
+          testID="start-chat-button"
         />
       </View>
     </Screen>

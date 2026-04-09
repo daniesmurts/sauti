@@ -2,7 +2,7 @@
 
 Source of truth: masterSpec.md
 Last updated: 2026-04-09
-Status basis: current implementation in SautiApp plus passing test suite (85 suites, 445 tests)
+Status basis: current implementation in SautiApp plus passing test suite (86 suites, 462 tests)
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -212,11 +212,11 @@ Acceptance criteria:
 - [x] Tests cover payer/invitee scenarios.
 
 ### 4) Subscription gate in UI
-Tag: TODO
+Tag: DONE
 Acceptance criteria:
-- [ ] Gate rules implemented for initiating non-contact messages.
-- [ ] Receiving messages remains unrestricted.
-- [ ] Clear upgrade prompts and states implemented.
+- [x] Gate rules implemented for initiating non-contact messages.
+- [x] Receiving messages remains unrestricted.
+- [x] Clear upgrade prompts and states implemented.
 
 ### 5) App Store + Play Store submission
 Tag: BLOCKED

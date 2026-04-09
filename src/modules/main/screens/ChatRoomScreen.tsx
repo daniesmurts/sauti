@@ -37,6 +37,12 @@ export interface ChatRoomScreenProps {
   onSend(): void;
   onSendVoiceNote?(filePath: string, durationMs: number): void;
   onAttachImage?(): void;
+  /**
+   * When true, the send input is replaced by a subscription upgrade banner.
+   * The user can still read all messages — only sending is gated.
+   */
+  subscriptionRequired?: boolean;
+  onUpgradePress?(): void;
 }
 
 export function ChatRoomScreen({
@@ -49,6 +55,8 @@ export function ChatRoomScreen({
   onSend,
   onSendVoiceNote,
   onAttachImage,
+  subscriptionRequired = false,
+  onUpgradePress,
 }: ChatRoomScreenProps): React.JSX.Element {
   useScreenCaptureProtection(true);
 
@@ -81,41 +89,56 @@ export function ChatRoomScreen({
         )}
       />
 
-      <View style={styles.inputBar}>
-        {sendError ? (
-          <Text style={styles.sendError}>{sendError}</Text>
-        ) : null}
-        <View style={styles.inputRow}>
-          {onAttachImage ? (
-            <TouchableOpacity
-              style={styles.attachButton}
-              accessibilityLabel="Attach image"
-              onPress={onAttachImage}
-              testID="attach-image-button">
-              <Text style={styles.attachIcon}>📎</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          <TextInput
-            accessibilityLabel="message-input"
-            value={draftMessage}
-            onChangeText={onDraftChange}
-            style={styles.input}
-            placeholder="Write a message"
-            placeholderTextColor={Colors.neutral[400]}
-            multiline
-            maxLength={1000}
-          />
-
-          {draftMessage.trim().length > 0 ? (
-            <Button label="Send" size="sm" onPress={onSend} />
-          ) : onSendVoiceNote ? (
-            <VoiceNoteRecordButton onSend={onSendVoiceNote} />
-          ) : (
-            <Button label="Send" size="sm" onPress={onSend} disabled />
-          )}
+      {subscriptionRequired ? (
+        <View style={styles.subscriptionGateBanner} testID="subscription-gate-banner">
+          <Text style={styles.subscriptionGateText}>
+            Subscribe to send messages to new contacts
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onUpgradePress}
+            style={styles.subscriptionGateButton}
+            testID="subscription-gate-upgrade-button">
+            <Text style={styles.subscriptionGateButtonText}>Subscribe</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      ) : (
+        <View style={styles.inputBar}>
+          {sendError ? (
+            <Text style={styles.sendError}>{sendError}</Text>
+          ) : null}
+          <View style={styles.inputRow}>
+            {onAttachImage ? (
+              <TouchableOpacity
+                style={styles.attachButton}
+                accessibilityLabel="Attach image"
+                onPress={onAttachImage}
+                testID="attach-image-button">
+                <Text style={styles.attachIcon}>📎</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TextInput
+              accessibilityLabel="message-input"
+              value={draftMessage}
+              onChangeText={onDraftChange}
+              style={styles.input}
+              placeholder="Write a message"
+              placeholderTextColor={Colors.neutral[400]}
+              multiline
+              maxLength={1000}
+            />
+
+            {draftMessage.trim().length > 0 ? (
+              <Button label="Send" size="sm" onPress={onSend} />
+            ) : onSendVoiceNote ? (
+              <VoiceNoteRecordButton onSend={onSendVoiceNote} />
+            ) : (
+              <Button label="Send" size="sm" onPress={onSend} disabled />
+            )}
+          </View>
+        </View>
+      )}
     </Screen>
   );
 }
@@ -184,5 +207,32 @@ const styles = StyleSheet.create({
     color: Colors.neutral[900],
     backgroundColor: Colors.neutral[0],
     ...TextPresets.body,
+  },
+  subscriptionGateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: Colors.neutral[200],
+    backgroundColor: Colors.semantic.infoBg,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  subscriptionGateText: {
+    ...TextPresets.caption,
+    flex: 1,
+    color: Colors.neutral[700],
+  },
+  subscriptionGateButton: {
+    backgroundColor: Colors.brand[500],
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.xs,
+  },
+  subscriptionGateButtonText: {
+    ...TextPresets.label,
+    color: Colors.neutral[0],
+    fontWeight: '700',
   },
 });
