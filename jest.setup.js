@@ -1,3 +1,18 @@
+jest.mock('react-native-screens', () => {
+  const RN = require('react-native');
+  return {
+    enableScreens: jest.fn(),
+    Screen: RN.View,
+    ScreenContainer: RN.View,
+    NativeScreen: RN.View,
+    NativeScreenContainer: RN.View,
+    ScreenStack: RN.View,
+    ScreenStackHeaderConfig: RN.View,
+    ScreenStackHeaderSubview: RN.View,
+    FullWindowOverlay: RN.View,
+  };
+});
+
 jest.mock('react-native-gesture-handler', () => {
   const React = require('react');
   const {View} = require('react-native');

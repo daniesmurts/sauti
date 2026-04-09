@@ -9,7 +9,7 @@
  *   Thumbnail: max 200px,  quality 60, JPEG
  */
 
-import ImageResizer from 'react-native-image-resizer';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
 
 export interface CompressResult {
   uri: string;

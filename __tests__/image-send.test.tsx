@@ -15,7 +15,7 @@ import React from 'react';
 import renderer, {act} from 'react-test-renderer';
 import {describe, expect, it, jest, beforeEach} from '@jest/globals';
 
-import ImageResizer from 'react-native-image-resizer';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
 import {compressOutbound, compressInbound, makeThumbnail} from '../src/utils/compress';
 import {InlineImage} from '../src/ui/components/InlineImage';
 import {ImageUploadService} from '../src/modules/main/image/ImageUploadService';
