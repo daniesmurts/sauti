@@ -4,6 +4,14 @@ import {matrixClient, SautiError} from './MatrixClient';
 
 type MatrixClientProvider = () => MatrixSdkClient;
 
+function isReactNativeRuntime(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.product === 'string' &&
+    navigator.product === 'ReactNative'
+  );
+}
+
 class MatrixCryptoWrapper {
   constructor(private readonly getClient: MatrixClientProvider = () => matrixClient.getClient()) {}
 
@@ -14,13 +22,19 @@ class MatrixCryptoWrapper {
         initCrypto?: () => Promise<void>;
       };
 
-      if (typeof client.initRustCrypto === 'function') {
-        await client.initRustCrypto();
+      if (typeof client.initCrypto === 'function') {
+        await client.initCrypto();
         return;
       }
 
-      if (typeof client.initCrypto === 'function') {
-        await client.initCrypto();
+      // matrix-js-sdk Rust crypto currently relies on module resolution paths
+      // that are not available in Metro React Native bundles.
+      if (isReactNativeRuntime()) {
+        return;
+      }
+
+      if (typeof client.initRustCrypto === 'function') {
+        await client.initRustCrypto();
         return;
       }
 

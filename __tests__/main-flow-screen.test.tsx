@@ -10,6 +10,17 @@ import {
   type RecentConversationTargetsStore,
 } from '../src/modules/main';
 
+function createMockContactsGateway() {
+  return {
+    async listContacts() {
+      return [];
+    },
+    async syncFromConversations() {
+      return;
+    },
+  };
+}
+
 function createMockGateway(): MainMessagingGateway {
   const state = {
     conversations: [
@@ -107,7 +118,11 @@ function createMockGateway(): MainMessagingGateway {
 describe('MainFlowScreen', () => {
   it('opens a conversation from list and returns back', async () => {
     const tree = renderer.create(
-      <MainFlowScreen gateway={createMockGateway()} refreshIntervalMs={0} />,
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+      />,
     );
 
     try {
@@ -142,12 +157,12 @@ describe('MainFlowScreen', () => {
         await Promise.resolve();
       });
 
-      // Heading is "Active Encrypted\nChannels" — children may be array or string
+      // Heading is now "Chats" in conversation list.
       const chatsHeading = tree.root.findAll(node => {
         if (node.type !== 'Text') return false;
         const c = node.props.children;
-        if (typeof c === 'string') return c.includes('Channels');
-        if (Array.isArray(c)) return c.some((part: unknown) => typeof part === 'string' && (part as string).includes('Channels'));
+        if (typeof c === 'string') return c.includes('Chats');
+        if (Array.isArray(c)) return c.some((part: unknown) => typeof part === 'string' && (part as string).includes('Chats'));
         return false;
       });
       expect(chatsHeading.length).toBeGreaterThan(0);
@@ -158,7 +173,11 @@ describe('MainFlowScreen', () => {
 
   it('sends a message in active room', async () => {
     const tree = renderer.create(
-      <MainFlowScreen gateway={createMockGateway()} refreshIntervalMs={0} />,
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+      />,
     );
 
     try {
@@ -206,7 +225,11 @@ describe('MainFlowScreen', () => {
 
   it('starts a new direct chat from matrix user id input', async () => {
     const tree = renderer.create(
-      <MainFlowScreen gateway={createMockGateway()} refreshIntervalMs={0} />,
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+      />,
     );
 
     try {
@@ -225,9 +248,20 @@ describe('MainFlowScreen', () => {
         await Promise.resolve();
       });
 
+      const advancedToggle = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'toggle-advanced-entry',
+      );
+
+      await act(async () => {
+        advancedToggle.props.onPress();
+        await Promise.resolve();
+      });
+
       const input = tree.root
         .findAllByType(TextInput)
-        .find(node => node.props.accessibilityLabel === 'Or start a new conversation');
+        .find(node => node.props.accessibilityLabel === 'Enter name or chat ID');
       expect(input).toBeDefined();
 
       await act(async () => {
@@ -279,6 +313,7 @@ describe('MainFlowScreen', () => {
     const tree = renderer.create(
       <MainFlowScreen
         gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
         recentTargetsStore={mockRecentStore}
         refreshIntervalMs={0}
       />,
@@ -341,6 +376,7 @@ describe('MainFlowScreen', () => {
     const tree = renderer.create(
       <MainFlowScreen
         gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
         refreshIntervalMs={0}
         initialRoomId="!room-kwame:sauti.app"
       />,
@@ -365,6 +401,7 @@ describe('MainFlowScreen', () => {
     const tree = renderer.create(
       <MainFlowScreen
         gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
         refreshIntervalMs={0}
         initialRoomId="!room-ama:sauti.app"
         onRoomOpened={onRoomOpened}
@@ -377,6 +414,69 @@ describe('MainFlowScreen', () => {
       });
 
       expect(onRoomOpened).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('opens existing chat from initialStartInput and acknowledges handling', async () => {
+    const onStartInputHandled = jest.fn();
+    const tree = renderer.create(
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+        initialStartInput="Kwame Asante"
+        onStartInputHandled={onStartInputHandled}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const roomTitle = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'Kwame Asante',
+      );
+      expect(roomTitle.length).toBeGreaterThan(0);
+      expect(onStartInputHandled).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('opens New Chat with disambiguation picker when initialStartInput is ambiguous', async () => {
+    const onStartInputHandled = jest.fn();
+    const tree = renderer.create(
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+        initialStartInput="a"
+        onStartInputHandled={onStartInputHandled}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const newChatHeading = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'New Chat',
+      );
+      expect(newChatHeading.length).toBeGreaterThan(0);
+
+      const disambiguationOptions = tree.root.findAll(
+        node =>
+          node.type === TouchableOpacity &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('ambiguous-match-'),
+      );
+      expect(disambiguationOptions.length).toBeGreaterThan(0);
+
+      expect(onStartInputHandled).toHaveBeenCalledTimes(1);
     } finally {
       tree.unmount();
     }

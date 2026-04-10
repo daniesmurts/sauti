@@ -35,25 +35,6 @@ export interface ConversationListScreenProps {
   onOpenNewConversation?(): void;
 }
 
-function renderProxyLabel(
-  proxyStatus: NonNullable<ConversationListScreenProps['proxyStatus']>,
-): string {
-  switch (proxyStatus) {
-    case 'connected':  return 'Proxy connected';
-    case 'connecting': return 'Proxy connecting';
-    case 'failed':     return 'Proxy failed';
-    default:           return 'Proxy disabled';
-  }
-}
-
-function proxyStatusColor(
-  proxyStatus: NonNullable<ConversationListScreenProps['proxyStatus']>,
-): string {
-  if (proxyStatus === 'connected') return Colors.semantic.success;
-  if (proxyStatus === 'connecting') return Colors.semantic.warning;
-  return Colors.semantic.error;
-}
-
 function networkStatusColor(
   networkState: NonNullable<ConversationListScreenProps['networkState']>,
 ): string {
@@ -228,38 +209,23 @@ export function ConversationListScreen({
     setIsComposerOpen(false);
   }, [onStartConversation, target]);
 
-  const proxyLabel = renderProxyLabel(proxyStatus);
-  const proxyColor = proxyStatusColor(proxyStatus);
   const netColor = networkStatusColor(networkState);
 
   return (
     <Screen dark>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={styles.heading}>Active Encrypted{'\n'}Channels</Text>
-        <Text style={styles.subheading}>
-          Peer-to-peer secure messaging routed through encrypted agreement relays.
-        </Text>
-
-        {/* Status pills — proxy and network shown separately */}
-        <View style={styles.statusRow}>
-          <View style={[styles.statusPill, {borderColor: proxyColor}]}>
-            <View style={[styles.statusDot, {backgroundColor: proxyColor}]} />
-            <Text style={[styles.statusPillText, {color: proxyColor}]}>{proxyLabel}</Text>
-          </View>
-          <View style={[styles.statusPill, {borderColor: netColor}]}>
-            <View style={[styles.statusDot, {backgroundColor: netColor}]} />
-            <Text style={[styles.statusPillText, {color: netColor}]}>
-              {networkState === 'connected' ? 'Online' : 'Offline'}
-            </Text>
-          </View>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Chats</Text>
+          {/* Compact connection indicator */}
+          <View style={[styles.connectionDot, {backgroundColor: netColor}]} />
         </View>
 
         {/* Search bar */}
         <View style={styles.searchContainer}>
           <Input
             label=""
-            placeholder="Search channels..."
+            placeholder="Search"
             value={searchQuery}
             onChangeText={setSearchQuery}
             dark
@@ -577,41 +543,21 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.base,
     gap: Spacing.sm,
   },
-  heading: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: Colors.neutral[0],
-    lineHeight: 32,
-  },
-  subheading: {
-    ...TextPresets.caption,
-    color: Colors.neutral[400],
-    lineHeight: 18,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
-  },
-  statusPill: {
+  headingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    gap: Spacing.sm,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius.full,
+  heading: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.neutral[0],
   },
-  statusPillText: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+    marginTop: 2,
   },
   searchContainer: {
     marginTop: Spacing.xs,

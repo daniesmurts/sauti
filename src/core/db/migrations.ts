@@ -1,6 +1,23 @@
 import {schemaMigrations} from '@nozbe/watermelondb/Schema/migrations';
 
-// Version 1 is represented by schema.ts; no post-v1 migrations yet.
 export const sautiDbMigrations = schemaMigrations({
-  migrations: [],
+  migrations: [
+    {
+      toVersion: 2,
+      steps: [
+        {
+          type: 'create_table',
+          schema: {
+            name: 'contacts',
+            columns: [
+              {name: 'display_name', type: 'string', isIndexed: true},
+              {name: 'last_message', type: 'string', isOptional: true},
+              {name: 'is_online', type: 'boolean'},
+              {name: 'updated_at', type: 'number', isIndexed: true},
+            ],
+          },
+        },
+      ],
+    },
+  ],
 });

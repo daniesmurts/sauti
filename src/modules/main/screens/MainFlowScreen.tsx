@@ -6,8 +6,13 @@ import {SautiError} from '../../../core/matrix';
 import {logger} from '../../../utils/logger';
 
 import {
+  buildChatStartCandidates,
+  createRuntimeContactsDirectoryGateway,
   createRuntimeRecentConversationTargetsStore,
   createRuntimeMainMessagingGateway,
+  resolveChatStartInput,
+  type ContactPreview,
+  type ContactsDirectoryGateway,
   type MainMessagingGateway,
   type RecentConversationTargetsStore,
 } from '../data';
@@ -29,12 +34,17 @@ const fallbackConversation: ConversationPreview = {
 
 export interface MainFlowScreenProps {
   gateway?: MainMessagingGateway;
+  contactsGateway?: ContactsDirectoryGateway;
   recentTargetsStore?: RecentConversationTargetsStore;
   refreshIntervalMs?: number;
   /** Room ID to open immediately — delivered from a push notification tap. */
   initialRoomId?: string;
   /** Called once the room from initialRoomId has been opened, so the caller can clear the pending value. */
   onRoomOpened?: () => void;
+  /** Friendly input requested by another entry point (for example Contacts tab). */
+  initialStartInput?: string;
+  /** Called once initialStartInput has been consumed. */
+  onStartInputHandled?: () => void;
 }
 
 function toStartConversationErrorMessage(error: unknown): string {
@@ -72,14 +82,21 @@ function toStartConversationErrorMessage(error: unknown): string {
 
 export function MainFlowScreen({
   gateway,
+  contactsGateway,
   recentTargetsStore,
   refreshIntervalMs = 4000,
   initialRoomId,
   onRoomOpened,
+  initialStartInput,
+  onStartInputHandled,
 }: MainFlowScreenProps): React.JSX.Element {
   const resolvedGateway = React.useMemo(
     () => gateway ?? createRuntimeMainMessagingGateway(),
     [gateway],
+  );
+  const resolvedContactsGateway = React.useMemo(
+    () => contactsGateway ?? createRuntimeContactsDirectoryGateway(),
+    [contactsGateway],
   );
   const resolvedRecentTargetsStore = React.useMemo(
     () => recentTargetsStore ?? createRuntimeRecentConversationTargetsStore(),
@@ -100,6 +117,7 @@ export function MainFlowScreen({
   }, [initialRoomId, onRoomOpened]);
   const [conversations, setConversations] = React.useState<ConversationPreview[]>([]);
   const [activeMessages, setActiveMessages] = React.useState<ChatMessage[]>([]);
+  const [contacts, setContacts] = React.useState<ContactPreview[]>([]);
   const [recentTargets, setRecentTargets] = React.useState<string[]>([]);
   const [proxyStatus, setProxyStatus] = React.useState<
     'connected' | 'connecting' | 'failed' | 'disabled'
@@ -109,18 +127,30 @@ export function MainFlowScreen({
   >('connected');
   const [startConversationError, setStartConversationError] = React.useState<string | undefined>();
   const [isStartingConversation, setIsStartingConversation] = React.useState(false);
+  const [hasLoadedConversations, setHasLoadedConversations] = React.useState(false);
+  const [lastHandledStartInput, setLastHandledStartInput] = React.useState<string | undefined>();
+  const [prefilledStartTarget, setPrefilledStartTarget] = React.useState<string | undefined>();
 
   const refreshConversations = React.useCallback(async () => {
     try {
       const fetchedConversations = await resolvedGateway.listConversations();
       setConversations(fetchedConversations);
+      await resolvedContactsGateway.syncFromConversations(fetchedConversations);
+      setContacts(await resolvedContactsGateway.listContacts());
     } catch (error) {
       logger.warn('Failed to refresh conversations', {
         error: error instanceof Error ? error.message : String(error),
       });
-      // Keep previous conversations on refresh failure rather than clearing
+      // Keep previous conversations on refresh failure rather than clearing.
+      try {
+        setContacts(await resolvedContactsGateway.listContacts());
+      } catch {
+        // Keep previous contacts when cache read also fails.
+      }
+    } finally {
+      setHasLoadedConversations(true);
     }
-  }, [resolvedGateway]);
+  }, [resolvedContactsGateway, resolvedGateway]);
 
   const refreshActiveRoomMessages = React.useCallback(async () => {
     if (!activeRoomId) {
@@ -243,6 +273,11 @@ export function MainFlowScreen({
 
   const [sendError, setSendError] = React.useState<string | undefined>();
 
+  const chatStartCandidates = React.useMemo(
+    () => buildChatStartCandidates({contacts, conversations}),
+    [contacts, conversations],
+  );
+
   const handleSend = React.useCallback(async () => {
     if (!activeRoomId) {
       return;
@@ -296,10 +331,65 @@ export function MainFlowScreen({
     [refreshConversations, resolvedGateway, resolvedRecentTargetsStore],
   );
 
+  React.useEffect(() => {
+    if (!initialStartInput) {
+      return;
+    }
+
+    if (!hasLoadedConversations) {
+      return;
+    }
+
+    if (lastHandledStartInput === initialStartInput) {
+      return;
+    }
+
+    setLastHandledStartInput(initialStartInput);
+    const resolution = resolveChatStartInput(initialStartInput, chatStartCandidates);
+
+    if (resolution.kind === 'existing_room') {
+      setStartConversationError(undefined);
+      setDraftMessage('');
+      setPrefilledStartTarget(undefined);
+      setActiveRoomId(resolution.roomId);
+      onStartInputHandled?.();
+      return;
+    }
+
+    if (resolution.kind === 'matrix_target') {
+      setPrefilledStartTarget(undefined);
+      void handleStartConversation(resolution.target).finally(() => {
+        onStartInputHandled?.();
+      });
+      return;
+    }
+
+    if (resolution.kind === 'ambiguous') {
+      setStartConversationError(undefined);
+      setPrefilledStartTarget(initialStartInput);
+      setIsNewConversationScreenOpen(true);
+      onStartInputHandled?.();
+      return;
+    }
+
+    setPrefilledStartTarget(undefined);
+    setStartConversationError('Could not auto-start chat from contact. Try New Chat.');
+    onStartInputHandled?.();
+  }, [
+    chatStartCandidates,
+    handleStartConversation,
+    hasLoadedConversations,
+    initialStartInput,
+    lastHandledStartInput,
+    onStartInputHandled,
+  ]);
+
   if (isNewConversationScreenOpen) {
     return (
       <NewConversationScreen
         conversations={conversations}
+        chatStartCandidates={chatStartCandidates}
+        initialTarget={prefilledStartTarget}
         recentTargets={recentTargets}
         onStartRecentTarget={target => {
           void handleStartConversation(target);
@@ -328,11 +418,13 @@ export function MainFlowScreen({
         startConversationError={startConversationError}
         onSelectConversation={roomId => {
           setDraftMessage('');
+          setPrefilledStartTarget(undefined);
           setStartConversationError(undefined);
           setActiveRoomId(roomId);
           setIsNewConversationScreenOpen(false);
         }}
         onBack={() => {
+          setPrefilledStartTarget(undefined);
           setIsNewConversationScreenOpen(false);
         }}
       />
@@ -389,6 +481,7 @@ export function MainFlowScreen({
           setActiveRoomId(roomId);
         }}
         onOpenNewConversation={() => {
+          setPrefilledStartTarget(undefined);
           setIsNewConversationScreenOpen(true);
         }}
       />

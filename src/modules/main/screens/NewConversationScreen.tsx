@@ -3,7 +3,11 @@ import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
 import {Avatar, Button, Input, Screen} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
-import {parseMatrixConversationTarget} from '../data';
+import {
+  resolveChatStartInput,
+  type ChatStartAmbiguousMatch,
+  type ChatStartConversationCandidate,
+} from '../data';
 
 export interface ConversationPreview {
   roomId: string;
@@ -17,6 +21,8 @@ export interface ConversationPreview {
 export interface NewConversationScreenProps {
   conversations: ConversationPreview[];
   onSelectConversation(roomId: string): void;
+  chatStartCandidates?: ChatStartConversationCandidate[];
+  initialTarget?: string;
   recentTargets?: string[];
   onStartRecentTarget?(target: string): Promise<void> | void;
   onRemoveRecentTarget?(target: string): Promise<void> | void;
@@ -53,41 +59,41 @@ function deriveStartTargetHint(target: string): {text: string; suggestions: stri
 
   if (!normalized) {
     return {
-      text: 'Start with @ for direct chat, # for room alias, or ! for room ID.',
-      suggestions: ['@friend:example.org', '#campus:example.org', '!abc123:example.org'],
+      text: 'Type a name to match an existing chat, or use Advanced for direct chat IDs.',
+      suggestions: [],
     };
   }
 
   if (normalized.startsWith('@')) {
     return {
-      text: 'Direct chat target detected. Use full Matrix user ID format.',
+      text: 'Direct user ID detected.',
       suggestions: [],
     };
   }
 
   if (normalized.startsWith('#')) {
     return {
-      text: 'Room alias detected. This will join the alias if available.',
+      text: 'Room alias detected.',
       suggestions: [],
     };
   }
 
   if (normalized.startsWith('!')) {
     return {
-      text: 'Room ID detected. This will join an existing room by ID.',
+      text: 'Room ID detected.',
       suggestions: [],
     };
   }
 
   if (normalized.includes(':')) {
     return {
-      text: 'Missing Matrix prefix. Tap a suggestion to autocomplete.',
+      text: 'Looks like an ID missing prefix.',
       suggestions: [`@${normalized}`, `#${normalized}`, `!${normalized}`],
     };
   }
 
   return {
-    text: 'Add a homeserver domain after colon, e.g. @friend:example.org.',
+    text: 'No exact match yet. Try full name, or open Advanced.',
     suggestions: [],
   };
 }
@@ -95,6 +101,8 @@ function deriveStartTargetHint(target: string): {text: string; suggestions: stri
 export function NewConversationScreen({
   conversations,
   onSelectConversation,
+  chatStartCandidates,
+  initialTarget,
   recentTargets = [],
   onStartRecentTarget,
   onRemoveRecentTarget,
@@ -112,6 +120,20 @@ export function NewConversationScreen({
   const [localError, setLocalError] = React.useState<string | undefined>();
   const [selectedFilter, setSelectedFilter] = React.useState<FilterTabType>('all');
   const [isConfirmingClear, setIsConfirmingClear] = React.useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(false);
+  const [ambiguousMatches, setAmbiguousMatches] = React.useState<ChatStartAmbiguousMatch[]>([]);
+  const [hydratedInitialTarget, setHydratedInitialTarget] = React.useState<string | undefined>();
+
+  const resolvedChatStartCandidates = React.useMemo(() => {
+    if (chatStartCandidates && chatStartCandidates.length > 0) {
+      return chatStartCandidates;
+    }
+
+    return conversations.map(conversation => ({
+      roomId: conversation.roomId,
+      displayName: conversation.displayName,
+    }));
+  }, [chatStartCandidates, conversations]);
 
   const hint = React.useMemo(() => deriveStartTargetHint(target), [target]);
 
@@ -158,18 +180,52 @@ export function NewConversationScreen({
     };
   }, [isConfirmingClear]);
 
+  React.useEffect(() => {
+    if (!initialTarget || hydratedInitialTarget === initialTarget) {
+      return;
+    }
+
+    setHydratedInitialTarget(initialTarget);
+    setIsAdvancedOpen(true);
+    setTarget(initialTarget);
+
+    const resolution = resolveChatStartInput(initialTarget, resolvedChatStartCandidates);
+    if (resolution.kind === 'ambiguous') {
+      setAmbiguousMatches(resolution.matches);
+      setLocalError('Multiple matches found. Choose one below or type a more specific name.');
+    }
+  }, [hydratedInitialTarget, initialTarget, resolvedChatStartCandidates]);
+
   const handleStartConversation = React.useCallback(() => {
     if (!onStartConversation) {
       return;
     }
 
-    const parsed = parseMatrixConversationTarget(target);
-    if (!parsed.ok) {
-      setLocalError(parsed.error);
+    const resolution = resolveChatStartInput(target, resolvedChatStartCandidates);
+    if (resolution.kind === 'invalid') {
+      setAmbiguousMatches([]);
+      setLocalError(resolution.error);
       return;
     }
 
-    const normalizedTarget = parsed.target.normalized;
+    if (resolution.kind === 'ambiguous') {
+      setAmbiguousMatches(resolution.matches);
+      setLocalError(
+        `Multiple matches found. Choose one below or type a more specific name.`,
+      );
+      return;
+    }
+
+    if (resolution.kind === 'existing_room') {
+      setAmbiguousMatches([]);
+      setLocalError(undefined);
+      onSelectConversation(resolution.roomId);
+      onBack();
+      return;
+    }
+
+    const normalizedTarget = resolution.target;
+    setAmbiguousMatches([]);
     setLocalError(undefined);
 
     if (onGateCheck) {
@@ -189,7 +245,15 @@ export function NewConversationScreen({
     void onStartConversation(normalizedTarget);
     setTarget('');
     onBack();
-  }, [onStartConversation, target, onBack, onGateCheck, onUpgradeRequired]);
+  }, [
+    onBack,
+    onGateCheck,
+    onSelectConversation,
+    onStartConversation,
+    onUpgradeRequired,
+    resolvedChatStartCandidates,
+    target,
+  ]);
 
   const handleSelectContact = React.useCallback(
     (roomId: string) => {
@@ -217,7 +281,7 @@ export function NewConversationScreen({
         <View style={styles.searchContainer}>
           <Input
             label=""
-            placeholder="Search contacts or Matrix target"
+            placeholder="Search contacts"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -292,7 +356,7 @@ export function NewConversationScreen({
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No contacts found</Text>
           <Text style={styles.emptyStateSubtitle}>
-            Enter a full Matrix target to start a new chat
+            Try a full name, then use Advanced if needed.
           </Text>
         </View>
       ) : null}
@@ -321,11 +385,13 @@ export function NewConversationScreen({
               </TouchableOpacity>
             ) : null}
           </View>
+
           {isConfirmingClear ? (
             <Text style={styles.clearConfirmHint}>
               Tap Confirm again to clear all recent targets.
             </Text>
           ) : null}
+
           <View style={styles.recentChips}>
             {recentTargets.map(recentTarget => (
               <View key={recentTarget} style={styles.recentChipWrap}>
@@ -342,6 +408,7 @@ export function NewConversationScreen({
                     setTarget(recentTarget);
                     setLocalError(undefined);
                     setIsConfirmingClear(false);
+                    setIsAdvancedOpen(true);
                   }}>
                   <Text style={styles.recentChipText}>{recentTarget}</Text>
                 </TouchableOpacity>
@@ -355,7 +422,7 @@ export function NewConversationScreen({
                       setIsConfirmingClear(false);
                       void onRemoveRecentTarget(recentTarget);
                     }}>
-                    <Text style={styles.removeChipText}>×</Text>
+                    <Text style={styles.removeChipText}>x</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -365,45 +432,88 @@ export function NewConversationScreen({
       ) : null}
 
       <View style={styles.footer}>
-        <Input
-          label="Or start a new conversation"
-          placeholder="@user:server.com"
-          value={target}
-          onChangeText={value => {
-            setTarget(value);
-            if (localError) {
-              setLocalError(undefined);
-            }
-            if (isConfirmingClear) {
-              setIsConfirmingClear(false);
-            }
-          }}
-          editable={!isStartingConversation}
-        />
-        <Text style={styles.hint}>{hint.text}</Text>
-        {hint.suggestions.length > 0 ? (
-          <View style={styles.suggestions}>
-            {hint.suggestions.map(suggestion => (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="toggle-advanced-entry"
+          activeOpacity={0.85}
+          onPress={() => {
+            setIsAdvancedOpen(current => !current);
+            setAmbiguousMatches([]);
+            setLocalError(undefined);
+          }}>
+          <Text style={styles.advancedToggleText}>
+            {isAdvancedOpen ? 'Hide Advanced' : 'Advanced: Enter chat ID'}
+          </Text>
+        </TouchableOpacity>
+
+        {isAdvancedOpen ? (
+          <>
+            <Input
+              label="Enter name or chat ID"
+              placeholder="Name, phone, or @user:server"
+              value={target}
+              onChangeText={value => {
+                setTarget(value);
+                if (ambiguousMatches.length > 0) {
+                  setAmbiguousMatches([]);
+                }
+                if (localError) {
+                  setLocalError(undefined);
+                }
+                if (isConfirmingClear) {
+                  setIsConfirmingClear(false);
+                }
+              }}
+              editable={!isStartingConversation}
+            />
+
+            <Text style={styles.hint}>{hint.text}</Text>
+            {hint.suggestions.length > 0 ? (
+              <View style={styles.suggestions}>
+                {hint.suggestions.map(suggestion => (
+                  <TouchableOpacity
+                    key={suggestion}
+                    accessibilityRole="button"
+                    accessibilityLabel={`suggestion-${suggestion}`}
+                    style={styles.suggestionChip}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setTarget(suggestion);
+                      setLocalError(undefined);
+                      setIsConfirmingClear(false);
+                    }}>
+                    <Text style={styles.suggestionChipText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {localError ? <Text style={styles.error}>{localError}</Text> : null}
+        {ambiguousMatches.length > 0 ? (
+          <View style={styles.disambiguationBox}>
+            <Text style={styles.disambiguationLabel}>Select a contact</Text>
+            {ambiguousMatches.map(match => (
               <TouchableOpacity
-                key={suggestion}
+                key={match.roomId}
                 accessibilityRole="button"
-                accessibilityLabel={`suggestion-${suggestion}`}
-                style={styles.suggestionChip}
+                accessibilityLabel={`ambiguous-match-${match.roomId}`}
+                style={styles.disambiguationRow}
                 activeOpacity={0.85}
                 onPress={() => {
-                  setTarget(suggestion);
+                  setAmbiguousMatches([]);
                   setLocalError(undefined);
-                  setIsConfirmingClear(false);
+                  onSelectConversation(match.roomId);
+                  onBack();
                 }}>
-                <Text style={styles.suggestionChipText}>{suggestion}</Text>
+                <Text style={styles.disambiguationText}>{match.displayName}</Text>
               </TouchableOpacity>
             ))}
           </View>
         ) : null}
-        {localError ? <Text style={styles.error}>{localError}</Text> : null}
-        {startConversationError ? (
-          <Text style={styles.error}>{startConversationError}</Text>
-        ) : null}
+        {startConversationError ? <Text style={styles.error}>{startConversationError}</Text> : null}
+
         <Button
           label="Start Chat"
           size="sm"
@@ -601,6 +711,11 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.neutral[200],
     gap: Spacing.sm,
   },
+  advancedToggleText: {
+    ...TextPresets.label,
+    color: Colors.brand[700],
+    fontWeight: '600',
+  },
   hint: {
     ...TextPresets.caption,
     color: Colors.neutral[600],
@@ -625,5 +740,30 @@ const styles = StyleSheet.create({
   error: {
     ...TextPresets.caption,
     color: Colors.semantic.error,
+  },
+  disambiguationBox: {
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
+    backgroundColor: Colors.neutral[50],
+  },
+  disambiguationLabel: {
+    ...TextPresets.label,
+    color: Colors.neutral[700],
+    fontWeight: '600',
+  },
+  disambiguationRow: {
+    borderWidth: 1,
+    borderColor: Colors.brand[200],
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.brand[50],
+  },
+  disambiguationText: {
+    ...TextPresets.label,
+    color: Colors.brand[700],
   },
 });

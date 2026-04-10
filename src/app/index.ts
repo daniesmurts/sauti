@@ -1,3 +1,4 @@
+export * from './AppNavigator';
 export * from './AuthGatewayPlaceholder';
 export * from './bootstrap';
 export * from './initializeApp';

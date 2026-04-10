@@ -415,7 +415,7 @@ describe('ConversationListScreen', () => {
     }
   });
 
-  it('renders proxy and network status banners', () => {
+  it('renders degraded network hint banner', () => {
     const tree = renderer.create(
       <ConversationListScreen
         conversations={conversations}
@@ -427,16 +427,6 @@ describe('ConversationListScreen', () => {
     );
 
     try {
-      const proxyNodes = tree.root.findAll(
-        node => node.type === 'Text' && node.props.children === 'Proxy connecting',
-      );
-      expect(proxyNodes.length).toBeGreaterThan(0);
-
-      const offlineNodes = tree.root.findAll(
-        node => node.type === 'Text' && node.props.children === 'Offline',
-      );
-      expect(offlineNodes.length).toBeGreaterThan(0);
-
       const degradedHintNodes = tree.root.findAll(
         node =>
           node.type === 'Text' &&

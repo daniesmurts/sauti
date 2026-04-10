@@ -16,15 +16,10 @@ import renderer, {act} from 'react-test-renderer';
 jest.mock('../src/app', () => ({
   initializeApp: jest.fn(),
   subscribeAppStartup: jest.fn(() => () => undefined),
-  MainGatewayPlaceholder: () => {
+  AppNavigator: ({isAuthenticated}: {isAuthenticated: boolean}) => {
     const ReactNative = require('react-native');
 
-    return <ReactNative.View testID="main-gateway" />;
-  },
-  AuthGatewayPlaceholder: () => {
-    const ReactNative = require('react-native');
-
-    return <ReactNative.View testID="auth-gateway" />;
+    return <ReactNative.View testID={isAuthenticated ? 'main-gateway' : 'auth-gateway'} />;
   },
 }));
 

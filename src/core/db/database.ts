@@ -2,10 +2,12 @@ import {Database} from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 
 import {
+  createWatermelonContactDirectoryStore,
   createWatermelonMessageStatusStore,
   createWatermelonMessageTimelineStore,
   createWatermelonOutgoingMessageCollection,
   createWatermelonRoomDirectoryStore,
+  WatermelonContactDirectoryStore,
   WatermelonMessageStatusStore,
   WatermelonMessageTimelineStore,
   WatermelonQueueMessageStore,
@@ -50,4 +52,8 @@ export function createWatermelonTimelineStore(database: Database): WatermelonMes
 
 export function createWatermelonRoomStore(database: Database): WatermelonRoomDirectoryStore {
   return createWatermelonRoomDirectoryStore(database);
+}
+
+export function createWatermelonContactStore(database: Database): WatermelonContactDirectoryStore {
+  return createWatermelonContactDirectoryStore(database);
 }

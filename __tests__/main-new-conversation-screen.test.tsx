@@ -79,6 +79,17 @@ describe('NewConversationScreen', () => {
     );
 
     try {
+      const openAdvancedButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'toggle-advanced-entry',
+      );
+
+      await act(async () => {
+        openAdvancedButton.props.onPress();
+        await Promise.resolve();
+      });
+
       const inputs = tree.root.findAllByType(TextInput);
       const targetInput = inputs[1];
 
@@ -100,6 +111,169 @@ describe('NewConversationScreen', () => {
 
       expect(onStartConversation).toHaveBeenCalledWith('@newfriend:example.org');
       expect(onBack).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('resolves exact name input to an existing conversation', async () => {
+    const onStartConversation = jest.fn();
+    const onSelectConversation = jest.fn();
+    const onBack = jest.fn();
+
+    const tree = renderer.create(
+      <NewConversationScreen
+        conversations={conversations}
+        onSelectConversation={onSelectConversation}
+        onStartConversation={onStartConversation}
+        onBack={onBack}
+      />,
+    );
+
+    try {
+      const openAdvancedButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'toggle-advanced-entry',
+      );
+
+      await act(async () => {
+        openAdvancedButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const inputs = tree.root.findAllByType(TextInput);
+      const targetInput = inputs[1];
+
+      await act(async () => {
+        targetInput.props.onChangeText('kwame asante');
+        await Promise.resolve();
+      });
+
+      const startButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'Start Chat',
+      );
+
+      await act(async () => {
+        startButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(onSelectConversation).toHaveBeenCalledWith('!room-1:sauti.app');
+      expect(onStartConversation).not.toHaveBeenCalled();
+      expect(onBack).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('shows disambiguation choices and opens selected match', async () => {
+    const onStartConversation = jest.fn();
+    const onSelectConversation = jest.fn();
+    const onBack = jest.fn();
+
+    const tree = renderer.create(
+      <NewConversationScreen
+        conversations={[
+          ...conversations,
+          {
+            roomId: '!room-3:sauti.app',
+            displayName: 'Amina Diallo',
+            lastMessage: 'Ping',
+            timestampLabel: 'Now',
+            unreadCount: 0,
+            isOnline: true,
+          },
+        ]}
+        onSelectConversation={onSelectConversation}
+        onStartConversation={onStartConversation}
+        onBack={onBack}
+      />,
+    );
+
+    try {
+      const openAdvancedButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'toggle-advanced-entry',
+      );
+
+      await act(async () => {
+        openAdvancedButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const targetInput = tree.root.findAllByType(TextInput)[1];
+      await act(async () => {
+        targetInput.props.onChangeText('a');
+        await Promise.resolve();
+      });
+
+      const startButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'Start Chat',
+      );
+
+      await act(async () => {
+        startButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const option = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'ambiguous-match-!room-3:sauti.app',
+      );
+
+      await act(async () => {
+        option.props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(onSelectConversation).toHaveBeenCalledWith('!room-3:sauti.app');
+      expect(onStartConversation).not.toHaveBeenCalled();
+      expect(onBack).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('hydrates initialTarget and shows disambiguation picker', async () => {
+    const tree = renderer.create(
+      <NewConversationScreen
+        conversations={[
+          ...conversations,
+          {
+            roomId: '!room-3:sauti.app',
+            displayName: 'Amina Diallo',
+            lastMessage: 'Ping',
+            timestampLabel: 'Now',
+            unreadCount: 0,
+            isOnline: true,
+          },
+        ]}
+        initialTarget="a"
+        onSelectConversation={() => {}}
+        onStartConversation={async () => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const options = tree.root.findAll(
+        node =>
+          node.type === TouchableOpacity &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('ambiguous-match-'),
+      );
+      expect(options.length).toBeGreaterThan(0);
     } finally {
       tree.unmount();
     }

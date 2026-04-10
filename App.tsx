@@ -8,9 +8,8 @@ import {
 } from 'react-native';
 
 import {
-  AuthGatewayPlaceholder,
+  AppNavigator,
   initializeApp,
-  MainGatewayPlaceholder,
   subscribeAppStartup,
 } from './src/app';
 import {
@@ -270,19 +269,11 @@ function App(): React.JSX.Element {
     </>
   );
 
-  if (state.status === 'main') {
+  if (state.status === 'main' || state.status === 'auth') {
     return (
       <View style={styles.gatewayContainer}>
-        <MainGatewayPlaceholder />
-        {renderNotificationOverlays()}
-      </View>
-    );
-  }
-
-  if (state.status === 'auth') {
-    return (
-      <View style={styles.gatewayContainer}>
-        <AuthGatewayPlaceholder
+        <AppNavigator
+          isAuthenticated={state.status === 'main'}
           onAuthenticated={() => {
             setState({
               status: 'main',

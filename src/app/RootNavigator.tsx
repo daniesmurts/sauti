@@ -1,12 +1,12 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {NavigationContainer, createNavigationContainerRef} from '@react-navigation/native';
-import {StyleSheet, Text, View} from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import {MainFlowScreen} from '../modules/main';
+import {ContactsScreen, MainFlowScreen} from '../modules/main';
 import {SettingsSecurityScreen} from '../modules/settings';
 import {CallLogScreen, CallProvider} from '../modules/calling';
-import {Colors, Spacing, TextPresets} from '../ui/tokens';
+import {Colors} from '../ui/tokens';
 import {useScreenCaptureProtection} from '../core/security/screenCaptureProtection';
 import {
   getInitialPushNotificationRoomId,
@@ -26,23 +26,19 @@ type RootTabParamList = {
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const navigationRef = createNavigationContainerRef<RootTabParamList>();
 
-interface PlaceholderTabScreenProps {
-  title: string;
-  detail: string;
-  testID: string;
-}
-
-function PlaceholderTabScreen({
-  title,
-  detail,
-  testID,
-}: PlaceholderTabScreenProps): React.JSX.Element {
-  return (
-    <View style={styles.container} testID={testID}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.detail}>{detail}</Text>
-    </View>
-  );
+function getTabBarIconName(routeName: keyof RootTabParamList, focused: boolean): string {
+  switch (routeName) {
+    case 'Chats':
+      return focused ? 'chat' : 'chat-outline';
+    case 'Calls':
+      return focused ? 'phone' : 'phone-outline';
+    case 'Contacts':
+      return focused ? 'account-group' : 'account-group-outline';
+    case 'Settings':
+      return focused ? 'cog' : 'cog-outline';
+    default:
+      return 'circle-outline';
+  }
 }
 
 function CallsTabScreen(): React.JSX.Element {
@@ -50,13 +46,7 @@ function CallsTabScreen(): React.JSX.Element {
 }
 
 function ContactsTabScreen(): React.JSX.Element {
-  return (
-    <PlaceholderTabScreen
-      title="Contacts"
-      detail="Contact search and invitation flows will be added next."
-      testID="tab-contacts-screen"
-    />
-  );
+  return <ContactsScreen />;
 }
 
 function SettingsTabScreen(): React.JSX.Element {
@@ -110,11 +100,18 @@ export function RootNavigator(): React.JSX.Element {
       <NavigationContainer ref={navigationRef}>
         <Tab.Navigator
           initialRouteName="Chats"
-          screenOptions={{
+          screenOptions={({route}) => ({
             headerShown: false,
             tabBarActiveTintColor: Colors.brand[600],
             tabBarInactiveTintColor: Colors.neutral[500],
-          }}>
+            tabBarIcon: ({focused, color, size}) => (
+              <MaterialCommunityIcons
+                name={getTabBarIconName(route.name, focused)}
+                size={size}
+                color={color}
+              />
+            ),
+          })}>
           <Tab.Screen name="Chats">
             {() => (
               <MainFlowScreen
@@ -132,22 +129,3 @@ export function RootNavigator(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    backgroundColor: Colors.neutral[0],
-  },
-  title: {
-    ...TextPresets.h2,
-    color: Colors.neutral[900],
-  },
-  detail: {
-    ...TextPresets.body,
-    color: Colors.neutral[600],
-    textAlign: 'center',
-  },
-});
