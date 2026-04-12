@@ -43,6 +43,8 @@ export interface MainFlowScreenProps {
   onRoomOpened?: () => void;
   /** Friendly input requested by another entry point (for example Contacts tab). */
   initialStartInput?: string;
+  /** Unique request ID so repeated taps on the same input are still handled. */
+  initialStartRequestId?: number;
   /** Called once initialStartInput has been consumed. */
   onStartInputHandled?: () => void;
 }
@@ -88,6 +90,7 @@ export function MainFlowScreen({
   initialRoomId,
   onRoomOpened,
   initialStartInput,
+  initialStartRequestId,
   onStartInputHandled,
 }: MainFlowScreenProps): React.JSX.Element {
   const resolvedGateway = React.useMemo(
@@ -128,7 +131,7 @@ export function MainFlowScreen({
   const [startConversationError, setStartConversationError] = React.useState<string | undefined>();
   const [isStartingConversation, setIsStartingConversation] = React.useState(false);
   const [hasLoadedConversations, setHasLoadedConversations] = React.useState(false);
-  const [lastHandledStartInput, setLastHandledStartInput] = React.useState<string | undefined>();
+  const [lastHandledStartRequestId, setLastHandledStartRequestId] = React.useState<number | undefined>();
   const [prefilledStartTarget, setPrefilledStartTarget] = React.useState<string | undefined>();
 
   const refreshConversations = React.useCallback(async () => {
@@ -322,8 +325,10 @@ export function MainFlowScreen({
         setActiveRoomId(created.roomId);
         setDraftMessage('');
         await refreshConversations();
+        return true;
       } catch (error) {
         setStartConversationError(toStartConversationErrorMessage(error));
+        return false;
       } finally {
         setIsStartingConversation(false);
       }
@@ -340,11 +345,17 @@ export function MainFlowScreen({
       return;
     }
 
-    if (lastHandledStartInput === initialStartInput) {
+    if (
+      typeof initialStartRequestId === 'number' &&
+      lastHandledStartRequestId === initialStartRequestId
+    ) {
       return;
     }
 
-    setLastHandledStartInput(initialStartInput);
+    if (typeof initialStartRequestId === 'number') {
+      setLastHandledStartRequestId(initialStartRequestId);
+    }
+
     const resolution = resolveChatStartInput(initialStartInput, chatStartCandidates);
 
     if (resolution.kind === 'existing_room') {
@@ -380,7 +391,8 @@ export function MainFlowScreen({
     handleStartConversation,
     hasLoadedConversations,
     initialStartInput,
-    lastHandledStartInput,
+    initialStartRequestId,
+    lastHandledStartRequestId,
     onStartInputHandled,
   ]);
 
@@ -391,8 +403,14 @@ export function MainFlowScreen({
         chatStartCandidates={chatStartCandidates}
         initialTarget={prefilledStartTarget}
         recentTargets={recentTargets}
-        onStartRecentTarget={target => {
-          void handleStartConversation(target);
+        onStartRecentTarget={async target => {
+          const started = await handleStartConversation(target);
+          if (started) {
+            setPrefilledStartTarget(undefined);
+            setIsNewConversationScreenOpen(false);
+          }
+
+          return started;
         }}
         onRemoveRecentTarget={target => {
           void resolvedRecentTargetsStore
@@ -425,6 +443,7 @@ export function MainFlowScreen({
         }}
         onBack={() => {
           setPrefilledStartTarget(undefined);
+          setStartConversationError(undefined);
           setIsNewConversationScreenOpen(false);
         }}
       />

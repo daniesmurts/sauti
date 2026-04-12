@@ -427,6 +427,7 @@ describe('MainFlowScreen', () => {
         contactsGateway={createMockContactsGateway()}
         refreshIntervalMs={0}
         initialStartInput="Kwame Asante"
+        initialStartRequestId={1}
         onStartInputHandled={onStartInputHandled}
       />,
     );
@@ -454,6 +455,7 @@ describe('MainFlowScreen', () => {
         contactsGateway={createMockContactsGateway()}
         refreshIntervalMs={0}
         initialStartInput="a"
+        initialStartRequestId={1}
         onStartInputHandled={onStartInputHandled}
       />,
     );
@@ -477,6 +479,44 @@ describe('MainFlowScreen', () => {
       expect(disambiguationOptions.length).toBeGreaterThan(0);
 
       expect(onStartInputHandled).toHaveBeenCalledTimes(1);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('re-handles the same initialStartInput when the request id changes', async () => {
+    const onStartInputHandled = jest.fn();
+    const tree = renderer.create(
+      <MainFlowScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+        initialStartInput="!room-kwame:sauti.app"
+        initialStartRequestId={1}
+        onStartInputHandled={onStartInputHandled}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        tree.update(
+          <MainFlowScreen
+            gateway={createMockGateway()}
+            contactsGateway={createMockContactsGateway()}
+            refreshIntervalMs={0}
+            initialStartInput="!room-kwame:sauti.app"
+            initialStartRequestId={2}
+            onStartInputHandled={onStartInputHandled}
+          />,
+        );
+        await Promise.resolve();
+      });
+
+      expect(onStartInputHandled).toHaveBeenCalledTimes(2);
     } finally {
       tree.unmount();
     }

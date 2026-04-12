@@ -4,6 +4,7 @@ import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Avatar, Input, Screen} from '../../../ui/components';
 import {Colors, Radius, Spacing, TextPresets} from '../../../ui/tokens';
 import {
+  buildContactSearchText,
   createRuntimeContactsDirectoryGateway,
   createRuntimeMainMessagingGateway,
   type ContactPreview,
@@ -80,7 +81,7 @@ export function ContactsScreen({
       return contacts;
     }
 
-    return contacts.filter(contact => contact.name.toLowerCase().includes(normalized));
+    return contacts.filter(contact => buildContactSearchText(contact).includes(normalized));
   }, [contacts, query]);
 
   return (
@@ -107,12 +108,14 @@ export function ContactsScreen({
             style={styles.row}
             accessibilityRole="button"
             accessibilityLabel={`open-contact-${item.id}`}
-            onPress={() => onStartChat?.(item.name)}>
+            onPress={() => onStartChat?.(item.id)}>
             <Avatar name={item.name} size="md" />
 
             <View style={styles.rowBody}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.rowSubtitle}>{item.subtitle}</Text>
+              <Text style={styles.rowSubtitle}>
+                {item.matrixUserId ?? item.phoneNumber ?? item.subtitle}
+              </Text>
             </View>
 
             <View

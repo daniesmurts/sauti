@@ -116,6 +116,62 @@ describe('NewConversationScreen', () => {
     }
   });
 
+  it('keeps New Chat open when async start fails', async () => {
+    const onStartConversation = jest.fn(async () => false);
+    const onBack = jest.fn();
+
+    const tree = renderer.create(
+      <NewConversationScreen
+        conversations={conversations}
+        onSelectConversation={() => {}}
+        onStartConversation={onStartConversation}
+        onBack={onBack}
+        startConversationError="Matrix unavailable"
+      />,
+    );
+
+    try {
+      const openAdvancedButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'toggle-advanced-entry',
+      );
+
+      await act(async () => {
+        openAdvancedButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const inputs = tree.root.findAllByType(TextInput);
+      const targetInput = inputs[1];
+
+      await act(async () => {
+        targetInput.props.onChangeText('@newfriend:example.org');
+        await Promise.resolve();
+      });
+
+      const startButton = tree.root.find(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'Start Chat',
+      );
+
+      await act(async () => {
+        await startButton.props.onPress();
+        await Promise.resolve();
+      });
+
+      const heading = tree.root.findAll(
+        node => node.type === 'Text' && node.props.children === 'New Chat',
+      );
+
+      expect(onBack).not.toHaveBeenCalled();
+      expect(heading.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
   it('resolves exact name input to an existing conversation', async () => {
     const onStartConversation = jest.fn();
     const onSelectConversation = jest.fn();

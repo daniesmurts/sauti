@@ -165,15 +165,15 @@ const styles = StyleSheet.create({
     color: Colors.neutral[600],
   },
   avatarContainer: {
-      remoteError: {
-        color: Colors.semantic.error,
-        ...TextPresets.caption,
-        textAlign: 'center',
-        marginTop: Spacing.xs,
-      },
     alignSelf: 'center',
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+  remoteError: {
+    color: Colors.semantic.error,
+    ...TextPresets.caption,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   avatarImage: {
     width: AVATAR_SIZE,

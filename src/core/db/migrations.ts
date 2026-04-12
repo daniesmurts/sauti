@@ -19,5 +19,19 @@ export const sautiDbMigrations = schemaMigrations({
         },
       ],
     },
+    {
+      toVersion: 3,
+      steps: [
+        {
+          type: 'add_columns',
+          table: 'contacts',
+          columns: [
+            {name: 'matrix_user_id', type: 'string', isOptional: true, isIndexed: true},
+            {name: 'phone_number', type: 'string', isOptional: true, isIndexed: true},
+            {name: 'source', type: 'string', isOptional: true, isIndexed: true},
+          ],
+        },
+      ],
+    },
   ],
 });

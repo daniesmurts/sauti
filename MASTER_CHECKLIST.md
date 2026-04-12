@@ -1,8 +1,8 @@
 # Sauti Master Checklist
 
 Source of truth: masterSpec.md
-Last updated: 2026-04-09
-Status basis: current implementation in SautiApp plus passing test suite (86 suites, 462 tests)
+Last updated: 2026-04-10
+Status basis: current implementation in SautiApp plus targeted regression coverage for recent messaging/contacts work
 
 Tag legend:
 - DONE: Implemented and validated against acceptance criteria.
@@ -12,6 +12,23 @@ Tag legend:
 
 Closure rule:
 - An item can be moved to DONE only when all acceptance criteria are checked and at least one validating test (unit/integration/e2e as appropriate) exists.
+
+---
+
+## Review Delta - 2026-04-10
+
+Recent completed work:
+- [x] Unified single-container app navigation is in place with Chats, Calls, Contacts, and Settings tabs.
+- [x] Consumer-style chat start flow exists with friendly-input resolution plus Advanced raw Matrix target entry.
+- [x] Ambiguous contact/name matches now route to explicit disambiguation instead of silently opening the wrong chat.
+- [x] Local contacts persistence now exists via WatermelonDB contacts schema, migration, model, store, and runtime gateway.
+- [x] Contacts tab is wired into the shared chat-start flow and recent targeted regression suites are passing.
+
+Open review risks from current implementation:
+- [x] New Chat now stays mounted until async raw-target creation succeeds, and start failures remain visible inline.
+- [x] Repeating the same contact handoff is now handled via request IDs rather than raw-string dedupe.
+- [x] Contact row taps now pass stable room/contact identifiers through the shared resolver.
+- [x] Contacts persistence now stores richer metadata with merge rules for Matrix IDs, phone numbers, and source priority.
 
 ---
 
@@ -53,7 +70,7 @@ Acceptance criteria:
 ### 5) WatermelonDB models + migration setup
 Tag: DONE
 Acceptance criteria:
-- [x] Schema exists for rooms, messages, outgoing_messages.
+- [x] Schema exists for rooms, messages, outgoing_messages, and contacts.
 - [x] Model classes exist.
 - [x] Migration scaffold exists.
 - [x] Repository adapters exist and are tested.
@@ -67,6 +84,13 @@ Acceptance criteria:
 - [x] Swipe archive/mute actions implemented.
 - [x] FAB to NewConversation with contact search implemented.
 - [x] Connection status banner and offline banner shown in list UI.
+- [x] Main app navigation uses Chats, Calls, Contacts, and Settings tabs.
+- [x] Contacts tab and New Chat share the same name-first chat-start resolver.
+- [x] Ambiguous matches are surfaced with an explicit picker instead of silent auto-selection.
+- [x] Starting a brand new raw-target chat keeps the user on-screen until success/failure is known.
+- [x] Tapping a contact row resolves via a stable identifier instead of display-name text.
+Validation note: recent contacts-first, local-contact persistence, and chat-start UX regression coverage are green; remaining work is now mainly richer contacts metadata and real-device validation.
+Validation note: recent contacts-first, local-contact persistence, richer contact metadata, and chat-start UX regression coverage are green; remaining work is now mainly real-device validation and infra documentation.
 
 ### 7) Offline queue with retry
 Tag: DONE
@@ -268,8 +292,5 @@ Acceptance criteria:
 
 ## Immediate Next Closure Sequence
 
-1. [x] Implement Android V2Ray native service scaffold and JS bridge contract.
-2. [x] Implement push notifications end-to-end wiring (permissions, token, handlers).
-3. [x] Introduce tab navigation skeleton (Chats, Calls, Contacts, Settings) and migrate current main flow into Chats tab.
-4. [x] Add explicit proxy and offline banners to ConversationList.
-5. [ ] Add backend artifacts in-repo or link an infra repo with pinned commit references and deployment runbook.
+1. [ ] Execute real-device proxy/VPN validation for Android domain fronting plus V2Ray together and record the result in repo documentation.
+2. [ ] Add backend artifacts in-repo or link an infra repo with pinned commit references and deployment runbook.

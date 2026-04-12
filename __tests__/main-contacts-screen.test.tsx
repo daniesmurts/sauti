@@ -36,6 +36,9 @@ function createMockContactsGateway() {
       id: string;
       name: string;
       subtitle: string;
+      matrixUserId?: string;
+      phoneNumber?: string;
+      source: 'conversation_sync' | 'directory_import' | 'manual';
       isOnline: boolean;
     }>,
   };
@@ -53,6 +56,11 @@ function createMockContactsGateway() {
         id: conversation.roomId,
         name: conversation.displayName,
         subtitle: conversation.lastMessage || 'No messages yet',
+        matrixUserId:
+          conversation.roomId === '!room-kwame:sauti.app'
+            ? '@kwame:matrix.sauti.ru'
+            : undefined,
+        source: 'conversation_sync',
         isOnline: conversation.isOnline,
       }));
     },
@@ -63,7 +71,7 @@ function createMockContactsGateway() {
 }
 
 describe('ContactsScreen', () => {
-  it('filters contacts and starts chat with selected contact name', async () => {
+  it('filters contacts and starts chat with selected contact id', async () => {
     const onStartChat = jest.fn();
 
     const tree = renderer.create(
@@ -100,7 +108,7 @@ describe('ContactsScreen', () => {
         await Promise.resolve();
       });
 
-      expect(onStartChat).toHaveBeenCalledWith('Kwame Asante');
+      expect(onStartChat).toHaveBeenCalledWith('!room-kwame:sauti.app');
     } finally {
       tree.unmount();
     }
@@ -134,6 +142,41 @@ describe('ContactsScreen', () => {
       );
 
       expect(emptyStateTitle.length).toBeGreaterThan(0);
+    } finally {
+      tree.unmount();
+    }
+  });
+
+  it('searches contacts by matrix user id metadata', async () => {
+    const tree = renderer.create(
+      <ContactsScreen
+        gateway={createMockGateway()}
+        contactsGateway={createMockContactsGateway()}
+        refreshIntervalMs={0}
+      />,
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const searchInput = tree.root.find(
+        node => node.type === TextInput && node.props.accessibilityLabel === 'contacts-search',
+      );
+
+      await act(async () => {
+        searchInput.props.onChangeText('@kwame:matrix.sauti.ru');
+        await Promise.resolve();
+      });
+
+      const contactButton = tree.root.findAll(
+        node =>
+          node.type === TouchableOpacity &&
+          node.props.accessibilityLabel === 'open-contact-!room-kwame:sauti.app',
+      );
+
+      expect(contactButton.length).toBe(1);
     } finally {
       tree.unmount();
     }

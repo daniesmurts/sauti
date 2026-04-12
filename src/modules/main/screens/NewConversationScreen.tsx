@@ -24,10 +24,10 @@ export interface NewConversationScreenProps {
   chatStartCandidates?: ChatStartConversationCandidate[];
   initialTarget?: string;
   recentTargets?: string[];
-  onStartRecentTarget?(target: string): Promise<void> | void;
+  onStartRecentTarget?(target: string): Promise<boolean | void> | boolean | void;
   onRemoveRecentTarget?(target: string): Promise<void> | void;
   onClearRecentTargets?(): Promise<void> | void;
-  onStartConversation?(target: string): Promise<void> | void;
+  onStartConversation?(target: string): Promise<boolean | void> | boolean | void;
   isStartingConversation?: boolean;
   startConversationError?: string;
   onBack(): void;
@@ -196,7 +196,7 @@ export function NewConversationScreen({
     }
   }, [hydratedInitialTarget, initialTarget, resolvedChatStartCandidates]);
 
-  const handleStartConversation = React.useCallback(() => {
+  const handleStartConversation = React.useCallback(async () => {
     if (!onStartConversation) {
       return;
     }
@@ -229,22 +229,38 @@ export function NewConversationScreen({
     setLocalError(undefined);
 
     if (onGateCheck) {
-      void (async () => {
+      try {
         const allowed = await onGateCheck(normalizedTarget);
         if (!allowed) {
           onUpgradeRequired?.(normalizedTarget);
           return;
         }
-        void onStartConversation(normalizedTarget);
+
+        const started = await onStartConversation(normalizedTarget);
+        if (started === false) {
+          return;
+        }
+
         setTarget('');
         onBack();
-      })();
+      } catch (error) {
+        setLocalError(error instanceof Error ? error.message : 'Unable to start conversation.');
+      }
+
       return;
     }
 
-    void onStartConversation(normalizedTarget);
-    setTarget('');
-    onBack();
+    try {
+      const started = await onStartConversation(normalizedTarget);
+      if (started === false) {
+        return;
+      }
+
+      setTarget('');
+      onBack();
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : 'Unable to start conversation.');
+    }
   }, [
     onBack,
     onGateCheck,

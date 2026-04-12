@@ -45,6 +45,14 @@ export function resolveChatStartInput(
     };
   }
 
+  const exactRoomMatch = conversations.find(conversation => conversation.roomId === trimmed);
+  if (exactRoomMatch) {
+    return {
+      kind: 'existing_room',
+      roomId: exactRoomMatch.roomId,
+    };
+  }
+
   const normalizedInput = normalize(trimmed);
   const matchingConversation = conversations.find(
     conversation => normalize(conversation.displayName) === normalizedInput,

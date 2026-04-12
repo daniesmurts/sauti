@@ -1,7 +1,7 @@
 import {appSchema, tableSchema} from '@nozbe/watermelondb';
 
 export const sautiDbSchema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     tableSchema({
       name: 'rooms',
@@ -45,6 +45,9 @@ export const sautiDbSchema = appSchema({
       name: 'contacts',
       columns: [
         {name: 'display_name', type: 'string', isIndexed: true},
+        {name: 'matrix_user_id', type: 'string', isOptional: true, isIndexed: true},
+        {name: 'phone_number', type: 'string', isOptional: true, isIndexed: true},
+        {name: 'source', type: 'string', isOptional: true, isIndexed: true},
         {name: 'last_message', type: 'string', isOptional: true},
         {name: 'is_online', type: 'boolean'},
         {name: 'updated_at', type: 'number', isIndexed: true},

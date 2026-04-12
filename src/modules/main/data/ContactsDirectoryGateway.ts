@@ -8,6 +8,9 @@ export interface ContactPreview {
   id: string;
   name: string;
   subtitle: string;
+  matrixUserId?: string;
+  phoneNumber?: string;
+  source: 'conversation_sync' | 'directory_import' | 'manual';
   isOnline: boolean;
 }
 
@@ -43,11 +46,21 @@ export function buildChatStartCandidates(input: {
   return [...ordered.values()];
 }
 
+export function buildContactSearchText(contact: ContactPreview): string {
+  return [contact.name, contact.matrixUserId, contact.phoneNumber, contact.subtitle]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .join(' ')
+    .toLowerCase();
+}
+
 function toContactPreview(record: ContactDirectoryRecord): ContactPreview {
   return {
     id: record.contactId,
     name: record.displayName,
     subtitle: record.lastMessage ?? 'No messages yet',
+    matrixUserId: record.matrixUserId,
+    phoneNumber: record.phoneNumber,
+    source: record.source,
     isOnline: record.isOnline,
   };
 }
@@ -61,19 +74,22 @@ export class RuntimeContactsDirectoryGateway implements ContactsDirectoryGateway
 
   async syncFromConversations(conversations: ConversationPreview[]): Promise<void> {
     const store = createWatermelonContactStore(getCoreDatabase());
-    const existing = await this.listContacts();
-    const existingById = new Map(existing.map(contact => [contact.id, contact]));
+    const existing = await store.listContacts();
+    const existingById = new Map(existing.map(contact => [contact.contactId, contact]));
     const now = Date.now();
 
     for (const conversation of conversations) {
       const current = existingById.get(conversation.roomId);
-      const mergedDisplayName = conversation.displayName.trim() || current?.name || 'Unknown';
-      const mergedLastMessage = conversation.lastMessage || current?.subtitle || 'No messages yet';
+      const mergedDisplayName = conversation.displayName.trim() || current?.displayName || 'Unknown';
+      const mergedLastMessage = conversation.lastMessage || current?.lastMessage || 'No messages yet';
       const mergedOnline = conversation.isOnline || current?.isOnline === true;
 
       await store.upsertContact({
         contactId: conversation.roomId,
         displayName: mergedDisplayName,
+        matrixUserId: current?.matrixUserId,
+        phoneNumber: current?.phoneNumber,
+        source: 'conversation_sync',
         lastMessage: mergedLastMessage,
         isOnline: mergedOnline,
         updatedAt: now,

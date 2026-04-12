@@ -91,7 +91,9 @@ function AuthSessionCheck({
 function MainTabNavigator(): React.JSX.Element {
   useScreenCaptureProtection(true);
   const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
-  const [pendingStartInput, setPendingStartInput] = React.useState<string | null>(null);
+  const [pendingStartRequest, setPendingStartRequest] = React.useState<
+    {id: number; value: string} | null
+  >(null);
 
   React.useEffect(() => {
     void getInitialPushNotificationRoomId().then(roomId => {
@@ -138,8 +140,9 @@ function MainTabNavigator(): React.JSX.Element {
             <MainFlowScreen
               initialRoomId={pendingRoomId ?? undefined}
               onRoomOpened={() => setPendingRoomId(null)}
-              initialStartInput={pendingStartInput ?? undefined}
-              onStartInputHandled={() => setPendingStartInput(null)}
+              initialStartInput={pendingStartRequest?.value}
+              initialStartRequestId={pendingStartRequest?.id}
+              onStartInputHandled={() => setPendingStartRequest(null)}
             />
           )}
         </Tab.Screen>
@@ -148,7 +151,10 @@ function MainTabNavigator(): React.JSX.Element {
           {() => (
             <ContactsScreen
               onStartChat={chatInput => {
-                setPendingStartInput(chatInput);
+                setPendingStartRequest(current => ({
+                  id: (current?.id ?? 0) + 1,
+                  value: chatInput,
+                }));
                 if (navigationRef.isReady()) {
                   navigationRef.navigate('Chats');
                 }

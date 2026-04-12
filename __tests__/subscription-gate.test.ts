@@ -323,9 +323,12 @@ describe('NewConversationScreen — gate integration', () => {
       }),
     );
 
+    // Open the Advanced section first
+    fireEvent.press(getByLabelText('toggle-advanced-entry'));
+
     // Type a valid Matrix target
     fireEvent.changeText(
-      getByLabelText('Or start a new conversation'),
+      getByLabelText('Enter name or chat ID'),
       '@carol:sauti.ru',
     );
 
@@ -354,8 +357,11 @@ describe('NewConversationScreen — gate integration', () => {
       }),
     );
 
+    // Open the Advanced section first
+    fireEvent.press(getByLabelText('toggle-advanced-entry'));
+
     fireEvent.changeText(
-      getByLabelText('Or start a new conversation'),
+      getByLabelText('Enter name or chat ID'),
       '@carol:sauti.ru',
     );
 
